@@ -1,0 +1,61 @@
+{
+  "name": "code-map",
+  "version": "1.0.0",
+  "description": "A comprehensive code indexing and analysis tool for large codebases",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "test:watch": "vitest --watch",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "scan": "tsx src/cli.ts scan",
+    "update": "tsx src/cli.ts update",
+    "query": "tsx src/cli.ts query",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "code-analysis",
+    "indexing",
+    "typescript",
+    "ast",
+    "codebase"
+  ],
+  "author": "",
+  "license": "MIT",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "dependencies": {
+    "fast-glob": "^3.3.3",
+    "ignore": "^7.0.5",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.33.0",
+    "prettier": "^3.6.2",
+    "vitest": "^3.2.4"
+  }
+}
