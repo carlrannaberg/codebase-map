@@ -100,12 +100,20 @@ The tool automatically selects the best format based on project size, or you can
 
 ### Using with Claude Code Hooks
 
-Create a hook to automatically include project structure:
+Configure hooks in `.claude/settings.json` to automatically include project structure when starting a session:
 
-```bash
-#!/bin/bash
-# .claude/hooks/project-context.sh
-codebase-map format
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {"type": "command", "command": "codebase-map format"}
+        ]
+      }
+    ]
+  }
+}
 ```
 
 ### Direct Usage

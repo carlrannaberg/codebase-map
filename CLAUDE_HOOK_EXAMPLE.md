@@ -47,13 +47,31 @@ echo "=== END PROJECT STRUCTURE ==="
 ```
 
 ### Example: Claude settings.json hook
+
+Best practice - include project structure at session start:
 ```json
 {
   "hooks": {
-    "prePrompt": [
+    "SessionStart": [
       {
-        "command": "codebase-map format",
-        "description": "Include project structure"
+        "hooks": [
+          {"type": "command", "command": "codebase-map format"}
+        ]
+      }
+    ]
+  }
+}
+```
+
+Alternative - add to every prompt (more overhead):
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {"type": "command", "command": "codebase-map format"}
+        ]
       }
     ]
   }
