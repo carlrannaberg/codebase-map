@@ -1,6 +1,6 @@
 {
   "name": "codebase-map",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A lightweight TypeScript/JavaScript code indexer that generates comprehensive project maps for LLMs",
   "type": "module",
   "engines": {
