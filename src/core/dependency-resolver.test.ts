@@ -136,10 +136,6 @@ describe('DependencyResolver', () => {
 
       expect(result).toEqual(['src/core/utils.ts']);
     });
-
-    // TODO: Fix path resolution to handle relative imports properly
-    // The current implementation has issues with path.resolve() creating absolute paths
-    // that don't match the relative paths in allFiles array
   });
 
   describe('buildDependencyGraph', () => {
@@ -426,8 +422,5 @@ describe('DependencyResolver', () => {
       // Should still process without throwing
       expect(result).toEqual([]);
     });
-
-    // TODO: Add proper path resolution tests once implementation is fixed
-    // Current path resolution has issues with absolute vs relative paths
   });
 });
