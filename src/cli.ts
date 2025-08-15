@@ -1,250 +1,270 @@
 #!/usr/bin/env node
 
-/**
- * Code Map CLI
- *
- * Command-line interface for the code indexing tool.
- */
-
-import { parseArgs } from 'node:util';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { CodeIndexer } from './core/index.js';
+import { Command } from 'commander';
+import fs from 'node:fs';
+import path from 'node:path';
+import { CodeIndexer, DependencyResolver } from './core/index.js';
 import type { ProjectIndex } from './types/index.js';
+import { findProjectRoot, findIndexFile } from './utils/find-project-root.js';
+import { 
+  toMinifiedJSON, 
+  toDSL, 
+  toGraph, 
+  toTypeScriptStyle,
+  toMarkdown,
+  formatAuto,
+  getCompressionStats
+} from './core/index-formatter.js';
 
-async function main(): Promise<void> {
-  const { values: args, positionals } = parseArgs({
-    args: process.argv.slice(2),
-    allowPositionals: true,
-    options: {
-      help: { type: 'boolean', short: 'h' },
-      version: { type: 'boolean', short: 'v' },
-      config: { type: 'string', short: 'c' },
-      output: { type: 'string', short: 'o' },
-      verbose: { type: 'boolean' },
-    },
-  });
+const program = new Command();
 
-  if (args.help) {
-    console.log(`
-🗺️  Code Map - Code Indexing Tool
+program
+  .name('code-map')
+  .description('A lightweight code indexing tool for TypeScript/JavaScript projects')
+  .version('1.0.0');
 
-A comprehensive tool for indexing and analyzing TypeScript/JavaScript codebases.
-
-Usage: code-map <command> [options]
-
-Commands:
-  scan [options]              Scan and index the entire codebase
-                              Creates PROJECT_INDEX.json with complete project structure
-                              
-  update <file-path> [options] Update a single file in the existing index
-                              Requires existing PROJECT_INDEX.json file
-                              
-  query [options]             Query the code index (coming soon)
-                              Search and analyze indexed code structure
-
-Options:
-  -h, --help                  Show this help message
-  -v, --version               Show version information
-  -c, --config <path>         Configuration file path (not yet implemented)
-  -o, --output <path>         Output path for index file (default: PROJECT_INDEX.json)
-  --verbose                   Enable verbose logging and detailed output
-
-Examples:
-  code-map scan               # Scan current directory, save to PROJECT_INDEX.json
-  code-map scan --verbose     # Scan with detailed progress information
-  code-map scan -o index.json # Scan and save to custom file
-  code-map update src/app.ts  # Update specific file in existing index
-  
-Performance:
-  - Processes files in parallel for faster scanning
-  - Incremental updates preserve existing analysis
-  - Typical performance: <1s for 100 files, ~5s for 1000 files
-  
-For more information, visit: https://github.com/your-repo/code-map
-    `);
-    return;
-  }
-
-  if (args.version) {
-    const pkg = await import('../package.json', { assert: { type: 'json' } });
-    console.log(`code-map v${pkg.default.version}`);
-    return;
-  }
-
-  const command = positionals[0];
-
-  if (!command) {
-    console.error('❌ Error: No command specified');
-    console.error('📖 Use --help to see available commands');
-    console.error('💡 Quick start: code-map scan');
-    process.exit(1);
-  }
-
-  switch (command) {
-    case 'scan':
-      await handleScanCommand(args);
-      break;
-    case 'update':
-      await handleUpdateCommand(args, positionals);
-      break;
-    case 'query':
-      console.log('🔍 Query command coming soon!');
-      console.log('This feature will allow you to:');
-      console.log('  • Search for functions, classes, and variables');
-      console.log('  • Analyze dependency relationships');
-      console.log('  • Find circular dependencies');
-      console.log('  • Export dependency graphs');
-      break;
-    default:
-      console.error(`❌ Unknown command: ${command}`);
-      console.error('📖 Available commands: scan, update, query');
-      console.error('💡 Use --help for detailed usage information');
-      process.exit(1);
-  }
-}
-
-/**
- * Handle the scan command - full project scan
- */
-async function handleScanCommand(args: Record<string, unknown>): Promise<void> {
-  try {
-    const rootPath = process.cwd();
-    const outputPath = (args.output as string) || 'PROJECT_INDEX.json';
-    const verbose = args.verbose as boolean;
-
-    console.log('🔍 Scanning codebase...');
-    if (verbose) {
-      console.log(`Root path: ${rootPath}`);
-      console.log(`Output path: ${outputPath}`);
-    }
-
-    const indexer = new CodeIndexer(rootPath);
+// Scan command
+program
+  .command('scan')
+  .description('Scan the entire project and generate index')
+  .option('-r, --root <path>', 'root directory to scan')
+  .option('-o, --output <path>', 'output file path', 'PROJECT_INDEX.json')
+  .option('-v, --verbose', 'show detailed progress')
+  .action(async (options) => {
+    const { output, verbose } = options;
     
-    // Progress callback for user feedback
-    const progressCallback = (progress: { step: string; current: number; total: number }): void => {
-      const percentage = Math.round((progress.current / progress.total) * 100);
-      console.log(`[${percentage}%] ${progress.step}`);
-    };
-
-    // Process the project
+    // Find project root if not specified
+    const root = options.root || findProjectRoot() || process.cwd();
+    if (!options.root && root !== process.cwd()) {
+      console.log(`📁 Found project root: ${root}`);
+    }
+    
+    console.log('🔍 Scanning codebase...');
+    
+    const indexer = new CodeIndexer(root);
     const startTime = Date.now();
-    const projectIndex = await indexer.processProject(verbose ? progressCallback : undefined);
-    const endTime = Date.now();
-
-    // Save to file
-    const absoluteOutputPath = path.resolve(outputPath);
-    await fs.promises.writeFile(
-      absoluteOutputPath, 
-      JSON.stringify(projectIndex, null, 2), 
-      'utf8'
-    );
-
-    // Display results
-    const stats = CodeIndexer.getProjectStats(projectIndex);
-    const duration = (endTime - startTime) / 1000;
-
+    
+    let stepsCompleted = 0;
+    const index = await indexer.processProject(verbose ? (progress: { step: string; current: number; total: number }): void => {
+      if (progress.current > stepsCompleted) {
+        stepsCompleted = progress.current;
+        console.log(`  ${progress.step}... (${progress.current}/${progress.total})`);
+      }
+    } : undefined);
+    
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+    
+    // Save the index
+    const outputPath = path.isAbsolute(output) ? output : path.join(root, output);
+    fs.writeFileSync(outputPath, JSON.stringify(index, null, 2));
+    
     console.log('\n✅ Scan completed successfully!');
-    console.log(`📁 Files processed: ${stats.totalFiles}`);
-    console.log(`🔗 Dependencies found: ${stats.totalDependencies}`);
-    console.log(`📊 Average dependencies per file: ${stats.averageDependenciesPerFile}`);
-    console.log(`⏱️  Processing time: ${duration.toFixed(2)}s`);
-    console.log(`💾 Index saved to: ${absoluteOutputPath}`);
-
-    if (stats.circularDependencies.length > 0) {
-      console.log(`⚠️  Circular dependencies detected: ${stats.circularDependencies.length}`);
-      if (verbose) {
-        stats.circularDependencies.forEach((cycle, index) => {
-          console.log(`   ${index + 1}. ${cycle.join(' → ')}`);
+    console.log(`📁 Files processed: ${index.metadata.totalFiles}`);
+    console.log(`🔗 Dependencies found: ${index.edges.length}`);
+    console.log(`📊 Average dependencies per file: ${(index.edges.length / index.metadata.totalFiles).toFixed(1)}`);
+    console.log(`⏱️  Processing time: ${elapsed}s`);
+    console.log(`💾 Index saved to: ${outputPath}`);
+    
+    if (verbose) {
+      // Show entry points and leaf files
+      const entryPoints = DependencyResolver.findEntryPoints(index.edges, index.nodes);
+      const leafFiles = DependencyResolver.findLeafFiles(index.edges, index.nodes);
+      
+      if (entryPoints.length > 0) {
+        console.log('\n📍 Entry points (files with no dependents):');
+        entryPoints.slice(0, 5).forEach((file: string) => console.log(`  - ${file}`));
+        if (entryPoints.length > 5) {
+          console.log(`  ... and ${entryPoints.length - 5} more`);
+        }
+      }
+      
+      if (leafFiles.length > 0) {
+        console.log('\n🍃 Leaf files (files with no dependencies):');
+        leafFiles.slice(0, 5).forEach((file: string) => console.log(`  - ${file}`));
+        if (leafFiles.length > 5) {
+          console.log(`  ... and ${leafFiles.length - 5} more`);
+        }
+      }
+      
+      // Check for circular dependencies
+      const circular = DependencyResolver.findCircularDependencies(index.edges);
+      if (circular.length > 0) {
+        console.log('\n⚠️  Warning: Circular dependencies detected:');
+        circular.slice(0, 3).forEach((cycle: string[]) => {
+          console.log(`  ${cycle.join(' → ')} → ${cycle[0]}`);
         });
+        if (circular.length > 3) {
+          console.log(`  ... and ${circular.length - 3} more cycles`);
+        }
       }
     }
+  });
 
-    if (verbose) {
-      console.log(`🚀 Entry points: ${stats.entryPoints.length}`);
-      console.log(`🍃 Leaf files: ${stats.leafFiles.length}`);
-    }
-
-  } catch (error) {
-    console.error('❌ Scan failed:', error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
-}
-
-/**
- * Handle the update command - incremental file update
- */
-async function handleUpdateCommand(args: Record<string, unknown>, positionals: string[]): Promise<void> {
-  try {
-    const filePath = positionals[1];
-    if (!filePath) {
-      console.error('❌ Error: File path required for update command');
-      console.error('Usage: code-map update <file-path>');
+// Update command
+program
+  .command('update <file>')
+  .description('Update the index for a specific file')
+  .option('-r, --root <path>', 'root directory')
+  .action(async (file, options) => {
+    // Find existing index file
+    const indexPath = findIndexFile() || path.join(process.cwd(), 'PROJECT_INDEX.json');
+    
+    if (!fs.existsSync(indexPath)) {
+      console.error('❌ No existing index found. Run "code-map scan" first.');
       process.exit(1);
     }
-
-    const indexPath = (args.output as string) || 'PROJECT_INDEX.json';
-    const verbose = args.verbose as boolean;
-
-    if (verbose) {
-      console.log(`Updating file: ${filePath}`);
-      console.log(`Index path: ${indexPath}`);
-    }
-
+    
+    // Derive root from index location
+    const root = options.root || path.dirname(indexPath);
+    
+    console.log(`🔄 Updating index for: ${file}`);
+    
     // Load existing index
-    let existingIndex: ProjectIndex;
+    const existingIndex: ProjectIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    
+    const indexer = new CodeIndexer(root);
+    const filePath = path.isAbsolute(file) ? file : path.join(root, file);
+    const relativePath = path.relative(root, filePath);
+    
     try {
-      const indexContent = await fs.promises.readFile(indexPath, 'utf8');
-      existingIndex = JSON.parse(indexContent) as ProjectIndex;
-    } catch {
-      console.error('❌ Error: Could not load existing index. Run scan command first.');
-      console.error(`Expected index file: ${path.resolve(indexPath)}`);
+      const updatedIndex = await indexer.updateFile(relativePath, existingIndex);
+      // Save the updated index
+      fs.writeFileSync(indexPath, JSON.stringify(updatedIndex, null, 2));
+      console.log('✅ Index updated successfully!');
+    } catch (error) {
+      console.error(`❌ Failed to update index: ${error}`);
       process.exit(1);
     }
+  });
 
-    const indexer = new CodeIndexer(existingIndex.metadata.root);
+// Format command - outputs to stdout
+program
+  .command('format')
+  .description('Format the index for LLMs (outputs to stdout)')
+  .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown|typescript|mini', 'auto')
+  .option('-s, --stats', 'show statistics to stderr (does not affect stdout output)')
+  .action((options) => {
+    const { format, stats } = options;
+    
+    // Find existing index file
+    const indexPath = findIndexFile();
+    
+    if (!indexPath || !fs.existsSync(indexPath)) {
+      console.error('❌ PROJECT_INDEX.json not found. Run "code-map scan" first.');
+      process.exit(1);
+    }
+    
+    const index: ProjectIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    
+    // Generate formatted output
+    let result: { format: string; content: string };
+    
+    switch (format) {
+      case 'json':
+        result = { format: 'json', content: JSON.stringify(index, null, 2) };
+        break;
+      case 'mini':
+        result = { format: 'mini', content: toMinifiedJSON(index) };
+        break;
+      case 'dsl':
+        result = { format: 'dsl', content: toDSL(index) };
+        break;
+      case 'graph':
+        result = { format: 'graph', content: toGraph(index) };
+        break;
+      case 'typescript':
+        result = { format: 'typescript', content: toTypeScriptStyle(index) };
+        break;
+      case 'markdown':
+        result = { format: 'markdown', content: toMarkdown(index) };
+        break;
+      case 'auto':
+      default:
+        result = formatAuto(index);
+        break;
+    }
+    
+    // Output to stdout (the actual formatted content)
+    process.stdout.write(result.content);
+    
+    // Optional stats to stderr (so it doesn't mix with the output)
+    if (stats) {
+      const compressionStats = getCompressionStats(index, result.content);
+      console.error(`\n--- Statistics (${result.format} format) ---`);
+      console.error(`Size: ${(compressionStats.compressedSize / 1024).toFixed(1)} KB (${compressionStats.reduction}% reduction)`);
+      console.error(`Tokens: ~${compressionStats.estimatedTokens.toLocaleString()} (${Math.round(compressionStats.estimatedTokens / index.metadata.totalFiles)} per file)`);
+      console.error(`Files: ${index.metadata.totalFiles}`);
+      
+      if (compressionStats.estimatedTokens > 50000) {
+        console.error('Warning: Index uses >50K tokens. Consider --format=graph for maximum compression.');
+      }
+    }
+  });
 
-    // Check if file exists
-    const absoluteFilePath = path.resolve(existingIndex.metadata.root, filePath);
-    const fileExists = await fs.promises.access(absoluteFilePath).then(() => true).catch(() => false);
-
-    console.log(`🔄 Updating index for: ${filePath}`);
-
-    let updatedIndex: ProjectIndex;
-
-    if (!fileExists) {
-      // File was deleted - remove from index
-      console.log('📁 File not found - removing from index');
-      updatedIndex = indexer.removeFile(filePath, existingIndex);
+// List command to show what's in the index
+program
+  .command('list')
+  .description('List files in the index')
+  .option('-d, --deps', 'show files with most dependencies')
+  .option('-e, --entries', 'show entry point files')
+  .option('-l, --leaves', 'show leaf files (no dependencies)')
+  .action((options) => {
+    // Find existing index file
+    const indexPath = findIndexFile();
+    
+    if (!indexPath || !fs.existsSync(indexPath)) {
+      console.error('❌ PROJECT_INDEX.json not found. Run "code-map scan" first.');
+      process.exit(1);
+    }
+    
+    const index: ProjectIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    
+    if (options.deps) {
+      // Show files with most dependencies
+      console.log('📊 Files with most dependencies:\n');
+      const fileDeps = Object.entries(index.files)
+        .map(([file, info]) => ({ file, count: info.dependencies.length }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+      
+      fileDeps.forEach(({ file, count }) => {
+        console.log(`  ${file} (${count} deps)`);
+      });
+    } else if (options.entries) {
+      // Show entry points
+      console.log('📍 Entry point files (no dependents):\n');
+      const dependents = new Set(index.edges.map(e => e.to));
+      const entries = index.nodes.filter(node => !dependents.has(node));
+      
+      entries.slice(0, 20).forEach(file => console.log(`  ${file}`));
+      if (entries.length > 20) {
+        console.log(`  ... and ${entries.length - 20} more`);
+      }
+    } else if (options.leaves) {
+      // Show leaf files
+      console.log('🍃 Leaf files (no dependencies):\n');
+      const leaves = Object.entries(index.files)
+        .filter(([_, info]) => info.dependencies.length === 0)
+        .map(([file]) => file);
+      
+      leaves.slice(0, 20).forEach(file => console.log(`  ${file}`));
+      if (leaves.length > 20) {
+        console.log(`  ... and ${leaves.length - 20} more`);
+      }
     } else {
-      // File exists - update it
-      console.log('📝 File found - updating index');
-      updatedIndex = await indexer.updateFile(filePath, existingIndex);
+      // Default: show all files
+      console.log(`📁 ${index.metadata.totalFiles} files indexed:\n`);
+      index.nodes.slice(0, 30).forEach(file => console.log(`  ${file}`));
+      if (index.nodes.length > 30) {
+        console.log(`  ... and ${index.nodes.length - 30} more`);
+      }
     }
+  });
 
-    // Save updated index
-    await fs.promises.writeFile(
-      indexPath,
-      JSON.stringify(updatedIndex, null, 2),
-      'utf8'
-    );
+// Parse arguments
+program.parse(process.argv);
 
-    console.log('✅ Update completed successfully!');
-    console.log(`💾 Updated index saved to: ${path.resolve(indexPath)}`);
-
-    if (verbose) {
-      const stats = CodeIndexer.getProjectStats(updatedIndex);
-      console.log(`📁 Total files: ${stats.totalFiles}`);
-      console.log(`🔗 Total dependencies: ${stats.totalDependencies}`);
-    }
-
-  } catch (error) {
-    console.error('❌ Update failed:', error instanceof Error ? error.message : String(error));
-    process.exit(1);
-  }
+// Show help if no command provided
+if (!process.argv.slice(2).length) {
+  program.outputHelp();
 }
-
-main().catch((error) => {
-  console.error('Error:', error);
-  process.exit(1);
-});
