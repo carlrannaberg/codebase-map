@@ -11,7 +11,10 @@ export type FormatType = 'json' | 'dsl' | 'graph' | 'markdown';
  * Human-readable, ultra-compact format
  */
 export function toDSL(index: ProjectIndex): string {
-  const lines: string[] = [];
+  const lines: string[] = [
+    '# Legend: fn=function cl=class cn=constant m=methods p=properties',
+    ''
+  ];
   
   for (const [path, info] of Object.entries(index.files)) {
     // Skip empty files
@@ -48,65 +51,65 @@ export function toDSL(index: ProjectIndex): string {
 }
 
 /**
- * Format 2: Graph + Signatures (96% token reduction vs compact JSON)
- * Extreme compression for large projects
+ * Format 2: Graph + Signatures (92% token reduction vs compact JSON)
+ * Readable compression with shortened paths for large projects
  */
 export function toGraph(index: ProjectIndex): string {
-  const fileMap = new Map<string, number>();
-  let idx = 0;
+  // Shorten file paths by removing common prefixes and extensions
+  const shortName = (path: string): string => {
+    return path
+      .replace(/^src\//, '')
+      .replace(/\.ts$/, '')
+      .replace(/\.tsx$/, '')
+      .replace(/\.js$/, '')
+      .replace(/\.jsx$/, '');
+  };
   
-  // Create file index
-  for (const file of index.nodes) {
-    fileMap.set(file, idx++);
-  }
+  const lines: string[] = [
+    '# Graph Format: Short names, arrows show dependencies',
+    '# fn=function cl=class cn=constant',
+    '',
+    'DEPS:'];
   
-  // Build edges section
-  const edgeMap = new Map<number, number[]>();
+  // Build edges with shortened names
   for (const edge of index.edges) {
-    const from = fileMap.get(edge.from);
-    const to = fileMap.get(edge.to);
-    if (from !== undefined && to !== undefined) {
-      if (!edgeMap.has(from)) edgeMap.set(from, []);
-      const fromEdges = edgeMap.get(from);
-      if (fromEdges) fromEdges.push(to);
-    }
-  }
-  
-  const lines: string[] = ['EDGES:'];
-  for (const [from, tos] of edgeMap.entries()) {
-    lines.push(`${from}→${tos.join(',')}`);
+    const from = shortName(edge.from);
+    const to = shortName(edge.to);
+    lines.push(`${from}→${to}`);
   }
   
   lines.push('\nSIGS:');
   for (const [path, info] of Object.entries(index.files)) {
-    const idx = fileMap.get(path);
-    if (idx === undefined) continue;
+    // Skip files with no signatures
+    if (!info.functions.length && !info.classes.length && !info.constants.length) {
+      continue;
+    }
     
-    const fileName = path.split('/').pop() || path;
-    const parts: string[] = [idx.toString(), fileName.replace('.ts', '')];
+    const shortPath = shortName(path);
+    const parts: string[] = [];
     
     // Compact function signatures
     if (info.functions.length > 0) {
-      const fns = info.functions.map(f => 
-        `${f.name}():${(f.returnType || 'v').substring(0, 1)}`
-      ).join(',');
+      const fns = info.functions.map(f => `fn:${f.name}`).join(',');
       parts.push(fns);
     }
     
     // Compact class info
     if (info.classes.length > 0) {
       const cls = info.classes.map(c => 
-        `${c.name}{${c.methods?.length || 0}m,${c.properties?.length || 0}p}`
+        `cl:${c.name}(${c.methods?.length || 0}m,${c.properties?.length || 0}p)`
       ).join(',');
       parts.push(cls);
     }
     
     // Constants (just names)
     if (info.constants.length > 0) {
-      parts.push(info.constants.map(c => c.name).join(','));
+      parts.push('cn:' + info.constants.map(c => c.name).join(','));
     }
     
-    lines.push(parts.join('|'));
+    if (parts.length > 0) {
+      lines.push(`${shortPath}: ${parts.join(' ')}`);
+    }
   }
   
   return lines.join('\n');
@@ -191,13 +194,14 @@ export function toMarkdown(index: ProjectIndex): string {
 export function formatAuto(index: ProjectIndex): { format: FormatType; content: string } {
   const fileCount = index.metadata.totalFiles;
   
-  // Use DSL for projects up to 2000 files (uses ~21% of Claude's context)
-  // This covers most real-world projects while keeping context usage reasonable
-  if (fileCount <= 2000) {
+  // Use DSL for most projects - it's more readable and the difference
+  // from graph format is minimal (90% vs 92% reduction)
+  // Only switch to graph for very large projects where every token counts
+  if (fileCount <= 5000) {
     return { format: 'dsl', content: toDSL(index) };
   } else {
-    // Graph format for large projects (>2000 files)
-    // Reduces token usage from 21% to 9% for a 2000-file project
+    // Graph format for very large projects (>5000 files)
+    // Slightly better compression but less readable
     return { format: 'graph', content: toGraph(index) };
   }
 }
