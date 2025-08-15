@@ -1,0 +1,1418 @@
+{
+  "metadata": {
+    "version": 1,
+    "root": "/Users/carl/Development/agents/code-map",
+    "createdAt": "2025-08-14T22:01:21.814Z",
+    "updatedAt": "2025-08-14T22:01:21.814Z",
+    "totalFiles": 20
+  },
+  "tree": {
+    "name": "code-map",
+    "type": "dir",
+    "children": [
+      {
+        "name": "src",
+        "type": "dir",
+        "children": [
+          {
+            "name": "core",
+            "type": "dir",
+            "children": [
+              {
+                "name": "dependency-resolver.test.ts",
+                "type": "file"
+              },
+              {
+                "name": "dependency-resolver.ts",
+                "type": "file"
+              },
+              {
+                "name": "file-discovery.test.ts",
+                "type": "file"
+              },
+              {
+                "name": "file-discovery.ts",
+                "type": "file"
+              },
+              {
+                "name": "index-store.ts",
+                "type": "file"
+              },
+              {
+                "name": "index.ts",
+                "type": "file"
+              },
+              {
+                "name": "indexer.test.ts",
+                "type": "file"
+              },
+              {
+                "name": "indexer.ts",
+                "type": "file"
+              },
+              {
+                "name": "tree-builder.ts",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "parsers",
+            "type": "dir",
+            "children": [
+              {
+                "name": "ast-parser.test.ts",
+                "type": "file"
+              },
+              {
+                "name": "ast-parser.ts",
+                "type": "file"
+              },
+              {
+                "name": "index.ts",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "types",
+            "type": "dir",
+            "children": [
+              {
+                "name": "ast.ts",
+                "type": "file"
+              },
+              {
+                "name": "common.ts",
+                "type": "file"
+              },
+              {
+                "name": "index.ts",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "utils",
+            "type": "dir",
+            "children": [
+              {
+                "name": "index.ts",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "cli.ts",
+            "type": "file"
+          },
+          {
+            "name": "index.ts",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "eslint.config.js",
+        "type": "file"
+      },
+      {
+        "name": "vitest.config.ts",
+        "type": "file"
+      }
+    ]
+  },
+  "nodes": [
+    "eslint.config.js",
+    "src/cli.ts",
+    "src/core/dependency-resolver.test.ts",
+    "src/core/dependency-resolver.ts",
+    "src/core/file-discovery.test.ts",
+    "src/core/file-discovery.ts",
+    "src/core/index-store.ts",
+    "src/core/index.ts",
+    "src/core/indexer.test.ts",
+    "src/core/indexer.ts",
+    "src/core/tree-builder.ts",
+    "src/index.ts",
+    "src/parsers/ast-parser.test.ts",
+    "src/parsers/ast-parser.ts",
+    "src/parsers/index.ts",
+    "src/types/ast.ts",
+    "src/types/common.ts",
+    "src/types/index.ts",
+    "src/utils/index.ts",
+    "vitest.config.ts"
+  ],
+  "edges": [],
+  "files": {
+    "eslint.config.js": {
+      "imports": [
+        {
+          "from": "@eslint/js",
+          "kind": "import",
+          "isDefault": true
+        },
+        {
+          "from": "@typescript-eslint/eslint-plugin",
+          "kind": "import",
+          "isDefault": true
+        },
+        {
+          "from": "@typescript-eslint/parser",
+          "kind": "import",
+          "isDefault": true
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/cli.ts": {
+      "imports": [
+        {
+          "from": "node:util",
+          "kind": "import",
+          "imported": [
+            "parseArgs"
+          ]
+        },
+        {
+          "from": "node:fs",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "node:path",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "./core/index.js",
+          "kind": "import",
+          "imported": [
+            "CodeIndexer"
+          ]
+        },
+        {
+          "from": "./types/index.js",
+          "kind": "import",
+          "imported": [
+            "ProjectIndex"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "isAsync": true,
+          "isExported": false,
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "handleScanCommand",
+          "params": [
+            {
+              "name": "args",
+              "type": "Record<string, unknown>"
+            }
+          ],
+          "isAsync": true,
+          "isExported": false,
+          "returnType": "Promise<void>"
+        },
+        {
+          "name": "handleUpdateCommand",
+          "params": [
+            {
+              "name": "args",
+              "type": "Record<string, unknown>"
+            },
+            {
+              "name": "positionals",
+              "type": "string[]"
+            }
+          ],
+          "isAsync": true,
+          "isExported": false,
+          "returnType": "Promise<void>"
+        }
+      ],
+      "classes": [],
+      "constants": []
+    },
+    "src/core/dependency-resolver.test.ts": {
+      "imports": [
+        {
+          "from": "vitest",
+          "kind": "import",
+          "imported": [
+            "describe",
+            "it",
+            "expect"
+          ]
+        },
+        {
+          "from": "./dependency-resolver.js",
+          "kind": "import",
+          "imported": [
+            "DependencyResolver"
+          ]
+        },
+        {
+          "from": "../types/index.js",
+          "kind": "import",
+          "imported": [
+            "ImportInfo"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/core/dependency-resolver.ts": {
+      "imports": [
+        {
+          "from": "node:path",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "../types/index.js",
+          "kind": "import",
+          "imported": [
+            "ImportInfo"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [
+        {
+          "name": "DependencyResolver",
+          "isExported": true,
+          "methods": [
+            {
+              "name": "resolveImports",
+              "params": [
+                {
+                  "name": "imports",
+                  "type": "ImportInfo[]"
+                },
+                {
+                  "name": "currentFilePath",
+                  "type": "string"
+                },
+                {
+                  "name": "allFiles",
+                  "type": "string[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string[]",
+              "isStatic": true
+            },
+            {
+              "name": "isRelativeImport",
+              "params": [
+                {
+                  "name": "specifier",
+                  "type": "string"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "boolean",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "resolveRelativeImport",
+              "params": [
+                {
+                  "name": "specifier",
+                  "type": "string"
+                },
+                {
+                  "name": "currentDir",
+                  "type": "string"
+                },
+                {
+                  "name": "allFiles",
+                  "type": "string[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string | undefined",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "generateCandidates",
+              "params": [
+                {
+                  "name": "basePath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string[]",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "buildDependencyGraph",
+              "params": [
+                {
+                  "name": "files",
+                  "type": "Record<string, ImportInfo[]>"
+                },
+                {
+                  "name": "allFiles",
+                  "type": "string[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "Array<{ from: string; to: string }>",
+              "isStatic": true
+            },
+            {
+              "name": "findCircularDependencies",
+              "params": [
+                {
+                  "name": "edges",
+                  "type": "Array<{ from: string; to: string }>"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string[][]",
+              "isStatic": true
+            },
+            {
+              "name": "getDependencyCounts",
+              "params": [
+                {
+                  "name": "edges",
+                  "type": "Array<{ from: string; to: string }>"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "{ dependencies: Map<string, number>; dependents: Map<string, number> }",
+              "isStatic": true
+            },
+            {
+              "name": "findEntryPoints",
+              "params": [
+                {
+                  "name": "edges",
+                  "type": "Array<{ from: string; to: string }>"
+                },
+                {
+                  "name": "allFiles",
+                  "type": "string[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string[]",
+              "isStatic": true
+            },
+            {
+              "name": "findLeafFiles",
+              "params": [
+                {
+                  "name": "edges",
+                  "type": "Array<{ from: string; to: string }>"
+                },
+                {
+                  "name": "allFiles",
+                  "type": "string[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string[]",
+              "isStatic": true
+            }
+          ],
+          "properties": [
+            {
+              "name": "EXTENSIONS",
+              "isStatic": true,
+              "isPrivate": true,
+              "isReadonly": true
+            },
+            {
+              "name": "INDEX_FILES",
+              "isStatic": true,
+              "isPrivate": true,
+              "isReadonly": true
+            }
+          ]
+        }
+      ],
+      "constants": []
+    },
+    "src/core/file-discovery.test.ts": {
+      "imports": [
+        {
+          "from": "vitest",
+          "kind": "import",
+          "imported": [
+            "describe",
+            "it",
+            "expect",
+            "beforeEach",
+            "afterEach",
+            "vi"
+          ]
+        },
+        {
+          "from": "node:fs",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "node:path",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "fast-glob",
+          "kind": "import",
+          "isDefault": true
+        },
+        {
+          "from": "ignore",
+          "kind": "import",
+          "isDefault": true
+        },
+        {
+          "from": "./file-discovery.js",
+          "kind": "import",
+          "imported": [
+            "FileDiscovery"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": [
+        {
+          "name": "mockFastGlob",
+          "initKind": "unknown",
+          "isExported": false
+        },
+        {
+          "name": "mockIgnore",
+          "initKind": "unknown",
+          "isExported": false
+        },
+        {
+          "name": "mockFs",
+          "initKind": "unknown",
+          "isExported": false
+        }
+      ]
+    },
+    "src/core/file-discovery.ts": {
+      "imports": [
+        {
+          "from": "node:path",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "node:fs",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "fast-glob",
+          "kind": "import",
+          "isDefault": true
+        },
+        {
+          "from": "ignore",
+          "kind": "import",
+          "isDefault": true
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [
+        {
+          "name": "FileDiscovery",
+          "isExported": true,
+          "methods": [
+            {
+              "name": "discoverFiles",
+              "params": [
+                {
+                  "name": "rootPath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": true,
+              "returnType": "Promise<string[]>",
+              "isStatic": true
+            },
+            {
+              "name": "loadIgnoreRules",
+              "params": [
+                {
+                  "name": "rootPath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": true,
+              "returnType": "Promise<ReturnType<typeof ignore>>",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "applyIgnoreRules",
+              "params": [
+                {
+                  "name": "files",
+                  "type": "string[]"
+                },
+                {
+                  "name": "ignoreRules",
+                  "type": "ReturnType<typeof ignore>"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string[]",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "isSupportedFile",
+              "params": [
+                {
+                  "name": "filePath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "boolean",
+              "isStatic": true
+            },
+            {
+              "name": "getSupportedExtensions",
+              "params": [],
+              "isAsync": false,
+              "returnType": "string[]",
+              "isStatic": true
+            }
+          ],
+          "properties": [
+            {
+              "name": "SUPPORTED_EXTENSIONS",
+              "isStatic": true,
+              "isPrivate": true,
+              "isReadonly": true
+            },
+            {
+              "name": "EXCLUDED_DIRS",
+              "isStatic": true,
+              "isPrivate": true,
+              "isReadonly": true
+            }
+          ]
+        }
+      ],
+      "constants": []
+    },
+    "src/core/index-store.ts": {
+      "imports": [],
+      "dependencies": [],
+      "functions": [],
+      "classes": [
+        {
+          "name": "IndexStore",
+          "isExported": true,
+          "methods": [],
+          "properties": []
+        }
+      ],
+      "constants": []
+    },
+    "src/core/index.ts": {
+      "imports": [
+        {
+          "from": "./indexer.js",
+          "kind": "export",
+          "imported": [
+            "CodeIndexer"
+          ]
+        },
+        {
+          "from": "./file-discovery.js",
+          "kind": "export",
+          "imported": [
+            "FileDiscovery"
+          ]
+        },
+        {
+          "from": "./tree-builder.js",
+          "kind": "export",
+          "imported": [
+            "TreeBuilder"
+          ]
+        },
+        {
+          "from": "./dependency-resolver.js",
+          "kind": "export",
+          "imported": [
+            "DependencyResolver"
+          ]
+        },
+        {
+          "from": "./index-store.js",
+          "kind": "export",
+          "imported": [
+            "IndexStore"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/core/indexer.test.ts": {
+      "imports": [
+        {
+          "from": "vitest",
+          "kind": "import",
+          "imported": [
+            "describe",
+            "it",
+            "expect",
+            "beforeEach",
+            "afterEach",
+            "vi"
+          ]
+        },
+        {
+          "from": "node:fs",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "fast-glob",
+          "kind": "import",
+          "isDefault": true
+        },
+        {
+          "from": "ignore",
+          "kind": "import",
+          "isDefault": true
+        },
+        {
+          "from": "./indexer.js",
+          "kind": "import",
+          "imported": [
+            "CodeIndexer"
+          ]
+        },
+        {
+          "from": "../types/index.js",
+          "kind": "import",
+          "imported": [
+            "ProjectIndex"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": [
+        {
+          "name": "mockFs",
+          "initKind": "unknown",
+          "isExported": false
+        }
+      ]
+    },
+    "src/core/indexer.ts": {
+      "imports": [
+        {
+          "from": "node:path",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "../types/index.js",
+          "kind": "import",
+          "imported": [
+            "ProjectIndex",
+            "FileInfo"
+          ]
+        },
+        {
+          "from": "./file-discovery.js",
+          "kind": "import",
+          "imported": [
+            "FileDiscovery"
+          ]
+        },
+        {
+          "from": "./tree-builder.js",
+          "kind": "import",
+          "imported": [
+            "TreeBuilder"
+          ]
+        },
+        {
+          "from": "../parsers/ast-parser.js",
+          "kind": "import",
+          "imported": [
+            "ASTParser"
+          ]
+        },
+        {
+          "from": "./dependency-resolver.js",
+          "kind": "import",
+          "imported": [
+            "DependencyResolver"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [
+        {
+          "name": "CodeIndexer",
+          "isExported": true,
+          "methods": [
+            {
+              "name": "processProject",
+              "params": [
+                {
+                  "name": "progressCallback",
+                  "type": "(progress: { step: string; current: number; total: number }) => void",
+                  "optional": true
+                }
+              ],
+              "isAsync": true,
+              "returnType": "Promise<ProjectIndex>"
+            },
+            {
+              "name": "updateFile",
+              "params": [
+                {
+                  "name": "filePath",
+                  "type": "string"
+                },
+                {
+                  "name": "existingIndex",
+                  "type": "ProjectIndex"
+                }
+              ],
+              "isAsync": true,
+              "returnType": "Promise<ProjectIndex>"
+            },
+            {
+              "name": "removeFile",
+              "params": [
+                {
+                  "name": "filePath",
+                  "type": "string"
+                },
+                {
+                  "name": "existingIndex",
+                  "type": "ProjectIndex"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "ProjectIndex"
+            },
+            {
+              "name": "parseFilesInParallel",
+              "params": [
+                {
+                  "name": "files",
+                  "type": "string[]"
+                },
+                {
+                  "name": "progressCallback",
+                  "type": "(progress: { step: string; current: number; total: number }) => void",
+                  "optional": true
+                }
+              ],
+              "isAsync": true,
+              "returnType": "Promise<Record<string, FileInfo>>",
+              "isPrivate": true
+            },
+            {
+              "name": "resolveDependencies",
+              "params": [
+                {
+                  "name": "fileInfos",
+                  "type": "Record<string, FileInfo>"
+                },
+                {
+                  "name": "allFiles",
+                  "type": "string[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "{ edges: Array<{ from: string; to: string }>; resolvedFiles: Record<string, FileInfo> }",
+              "isPrivate": true
+            },
+            {
+              "name": "rebuildEdgesForFile",
+              "params": [
+                {
+                  "name": "filePath",
+                  "type": "string"
+                },
+                {
+                  "name": "index",
+                  "type": "ProjectIndex"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "Array<{ from: string; to: string }>",
+              "isPrivate": true
+            },
+            {
+              "name": "getProjectStats",
+              "params": [
+                {
+                  "name": "index",
+                  "type": "ProjectIndex"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "{\n    totalFiles: number;\n    totalDependencies: number;\n    averageDependenciesPerFile: number;\n    circularDependencies: string[][];\n    entryPoints: string[];\n    leafFiles: string[];\n  }",
+              "isStatic": true
+            }
+          ],
+          "properties": [
+            {
+              "name": "rootPath",
+              "type": "string",
+              "isPrivate": true
+            }
+          ]
+        }
+      ],
+      "constants": []
+    },
+    "src/core/tree-builder.ts": {
+      "imports": [
+        {
+          "from": "../types/index.js",
+          "kind": "import",
+          "imported": [
+            "TreeNode"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [
+        {
+          "name": "TreeBuilder",
+          "isExported": true,
+          "methods": [
+            {
+              "name": "buildTree",
+              "params": [
+                {
+                  "name": "files",
+                  "type": "string[]"
+                },
+                {
+                  "name": "rootName"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "TreeNode",
+              "isStatic": true
+            },
+            {
+              "name": "addFileToTree",
+              "params": [
+                {
+                  "name": "root",
+                  "type": "TreeNode"
+                },
+                {
+                  "name": "filePath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "sortTreeChildren",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "TreeNode"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "getFilesFromTree",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "TreeNode"
+                },
+                {
+                  "name": "basePath"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "string[]",
+              "isStatic": true
+            },
+            {
+              "name": "countNodes",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "TreeNode"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "{ files: number; directories: number }",
+              "isStatic": true
+            },
+            {
+              "name": "findNodeByPath",
+              "params": [
+                {
+                  "name": "root",
+                  "type": "TreeNode"
+                },
+                {
+                  "name": "targetPath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "TreeNode | undefined",
+              "isStatic": true
+            }
+          ],
+          "properties": []
+        }
+      ],
+      "constants": []
+    },
+    "src/index.ts": {
+      "imports": [
+        {
+          "from": "./core/index.js",
+          "kind": "export"
+        },
+        {
+          "from": "./parsers/index.js",
+          "kind": "export"
+        },
+        {
+          "from": "./utils/index.js",
+          "kind": "export"
+        },
+        {
+          "from": "./types/index.js",
+          "kind": "export"
+        },
+        {
+          "from": "./core/indexer.js",
+          "kind": "export",
+          "imported": [
+            "CodeIndexer"
+          ]
+        },
+        {
+          "from": "./core/file-discovery.js",
+          "kind": "export",
+          "imported": [
+            "FileDiscovery"
+          ]
+        },
+        {
+          "from": "./core/index-store.js",
+          "kind": "export",
+          "imported": [
+            "IndexStore"
+          ]
+        },
+        {
+          "from": "./types/common.js",
+          "kind": "export"
+        },
+        {
+          "from": "./types/ast.js",
+          "kind": "export"
+        },
+        {
+          "from": "./types/index.js",
+          "kind": "export"
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/parsers/ast-parser.test.ts": {
+      "imports": [
+        {
+          "from": "vitest",
+          "kind": "import",
+          "imported": [
+            "describe",
+            "it",
+            "expect",
+            "beforeEach",
+            "afterEach",
+            "vi"
+          ]
+        },
+        {
+          "from": "node:fs",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "./ast-parser.js",
+          "kind": "import",
+          "imported": [
+            "ASTParser"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": [
+        {
+          "name": "mockFs",
+          "initKind": "unknown",
+          "isExported": false
+        }
+      ]
+    },
+    "src/parsers/ast-parser.ts": {
+      "imports": [
+        {
+          "from": "node:fs",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "node:path",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "typescript",
+          "kind": "import",
+          "isNamespace": true
+        },
+        {
+          "from": "../types/index.js",
+          "kind": "import",
+          "imported": [
+            "FuncSig",
+            "ClassInfo",
+            "ConstInfo",
+            "ImportInfo",
+            "FileInfo"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [
+        {
+          "name": "ASTParser",
+          "isExported": true,
+          "methods": [
+            {
+              "name": "parseFile",
+              "params": [
+                {
+                  "name": "filePath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": true,
+              "returnType": "Promise<FileInfo>",
+              "isStatic": true
+            },
+            {
+              "name": "parseContent",
+              "params": [
+                {
+                  "name": "content",
+                  "type": "string"
+                },
+                {
+                  "name": "filePath",
+                  "type": "string"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "FileInfo",
+              "isStatic": true
+            },
+            {
+              "name": "getScriptKind",
+              "params": [
+                {
+                  "name": "ext",
+                  "type": "string"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "ts.ScriptKind",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "visitNode",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "ts.Node"
+                },
+                {
+                  "name": "imports",
+                  "type": "ImportInfo[]"
+                },
+                {
+                  "name": "functions",
+                  "type": "FuncSig[]"
+                },
+                {
+                  "name": "classes",
+                  "type": "ClassInfo[]"
+                },
+                {
+                  "name": "constants",
+                  "type": "ConstInfo[]"
+                },
+                {
+                  "name": "sourceFile",
+                  "type": "ts.SourceFile"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "extractImport",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "ts.ImportDeclaration"
+                },
+                {
+                  "name": "imports",
+                  "type": "ImportInfo[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "extractExport",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "ts.ExportDeclaration"
+                },
+                {
+                  "name": "imports",
+                  "type": "ImportInfo[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "extractDynamicImport",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "ts.CallExpression"
+                },
+                {
+                  "name": "imports",
+                  "type": "ImportInfo[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "extractFunction",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "ts.FunctionDeclaration"
+                },
+                {
+                  "name": "functions",
+                  "type": "FuncSig[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "extractClass",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "ts.ClassDeclaration"
+                },
+                {
+                  "name": "classes",
+                  "type": "ClassInfo[]"
+                },
+                {
+                  "name": "sourceFile",
+                  "type": "ts.SourceFile"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "extractConstants",
+              "params": [
+                {
+                  "name": "node",
+                  "type": "ts.VariableStatement"
+                },
+                {
+                  "name": "constants",
+                  "type": "ConstInfo[]"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "void",
+              "isStatic": true,
+              "isPrivate": true
+            },
+            {
+              "name": "getInitializerKind",
+              "params": [
+                {
+                  "name": "initializer",
+                  "type": "ts.Expression"
+                }
+              ],
+              "isAsync": false,
+              "returnType": "ConstInfo['initKind']",
+              "isStatic": true,
+              "isPrivate": true
+            }
+          ],
+          "properties": []
+        }
+      ],
+      "constants": []
+    },
+    "src/parsers/index.ts": {
+      "imports": [
+        {
+          "from": "./ast-parser.js",
+          "kind": "export",
+          "imported": [
+            "ASTParser"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/types/ast.ts": {
+      "imports": [],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/types/common.ts": {
+      "imports": [],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/types/index.ts": {
+      "imports": [
+        {
+          "from": "./common.js",
+          "kind": "export"
+        },
+        {
+          "from": "./ast.js",
+          "kind": "export"
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "src/utils/index.ts": {
+      "imports": [],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    },
+    "vitest.config.ts": {
+      "imports": [
+        {
+          "from": "vitest/config",
+          "kind": "import",
+          "imported": [
+            "defineConfig"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "functions": [],
+      "classes": [],
+      "constants": []
+    }
+  }
+}

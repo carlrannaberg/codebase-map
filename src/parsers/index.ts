@@ -2,5 +2,4 @@
  * Parser module exports
  */
 
-// TODO: Export parsers once implemented
-export {};
+export { ASTParser } from './ast-parser.js';
