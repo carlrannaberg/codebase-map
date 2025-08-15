@@ -89,11 +89,11 @@ The tool automatically selects the best format based on project size, or you can
 
 | Format | Description | Best For | Compression |
 |--------|-------------|----------|-------------|
-| `dsl` | Domain-specific language | Small-medium projects (≤2000 files) | ~96% |
+| `dsl` | Domain-specific language | Small-medium projects (≤2000 files) | ~95% |
 | `graph` | Ultra-compact graph notation | Large projects (>2000 files) | ~98% |
-| `markdown` | Human-readable markdown | Documentation | ~94% |
-| `typescript` | TypeScript-style definitions | Type overview | ~95% |
-| `mini` | Minified JSON | Structured data | ~85% |
+| `markdown` | Human-readable markdown | Documentation | ~96% |
+| `typescript` | TypeScript-style definitions | Type overview | ~94% |
+| `mini` | Minified JSON | Structured data | ~92% |
 | `json` | Full JSON | Complete information | 0% |
 
 ## Integration with Claude
@@ -137,10 +137,10 @@ src/types/index.ts > types/ast.ts,types/common.ts
 
 ## Performance
 
-- Processes ~1000 files/second
-- Generates ~21 tokens/file in DSL format
-- Generates ~9 tokens/file in graph format
-- 96-98% size reduction vs full JSON
+- Processes ~400 files/second
+- Generates ~28 tokens/file in DSL format
+- Generates ~11 tokens/file in graph format
+- 92-98% size reduction vs full JSON
 
 ## Requirements
 
