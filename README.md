@@ -57,7 +57,7 @@ Formats the index for LLM consumption (outputs to stdout).
 codebase-map format [options]
 
 Options:
-  -f, --format <type>  Output format: auto|json|dsl|graph|markdown|mini
+  -f, --format <type>  Output format: auto|json|dsl|graph|markdown
   -s, --stats          Show statistics to stderr
 ```
 
@@ -87,13 +87,12 @@ Options:
 
 The tool automatically selects the best format based on project size, or you can specify one:
 
-| Format | Description | Best For | Compression |
-|--------|-------------|----------|-------------|
-| `dsl` | Domain-specific language | Small-medium projects (≤2000 files) | ~95% |
-| `graph` | Ultra-compact graph notation | Large projects (>2000 files) | ~98% |
-| `markdown` | Human-readable markdown | Documentation | ~96% |
-| `mini` | Minified JSON | Structured data | ~92% |
-| `json` | Full JSON | Complete information | 0% |
+| Format | Description | Best For | Token Reduction |
+|--------|-------------|----------|-----------------|
+| `dsl` | Domain-specific language | Small-medium projects (≤2000 files) | ~90% |
+| `graph` | Ultra-compact graph notation | Large projects (>2000 files) | ~96% |
+| `markdown` | Human-readable markdown | Documentation | ~93% |
+| `json` | Compact JSON | Baseline | 0% |
 
 ## Integration with Claude
 
@@ -143,7 +142,7 @@ src/utils/find-project-root.ts >
 - Processes ~400 files/second
 - Generates ~28 tokens/file in DSL format
 - Generates ~11 tokens/file in graph format
-- 92-98% size reduction vs full JSON
+- 90-96% token reduction vs compact JSON
 
 ## Requirements
 

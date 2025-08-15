@@ -2,7 +2,6 @@
 
 import fs from 'node:fs';
 import { 
-  toMinifiedJSON, 
   toDSL, 
   toGraph,
   toMarkdown,
@@ -19,7 +18,6 @@ console.log('=== Compression Analysis for PROJECT_INDEX.json ===\n');
 
 // Test each format
 const formats = [
-  { name: 'Minified JSON', fn: toMinifiedJSON },
   { name: 'DSL Format', fn: toDSL },
   { name: 'Graph Format', fn: toGraph },
   { name: 'Markdown', fn: toMarkdown }

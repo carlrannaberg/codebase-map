@@ -70,6 +70,21 @@
           {
             "type": "command",
             "command": "claudekit-hooks run create-checkpoint"
+          },
+          {
+            "type": "command",
+            "command": "claudekit-hooks run self-review"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claudekit-hooks run self-review"
           }
         ]
       }

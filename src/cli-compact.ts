@@ -8,7 +8,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { 
-  toMinifiedJSON, 
   toDSL, 
   toGraph,
   formatAuto,
@@ -33,9 +32,6 @@ const index: ProjectIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
 let result: { format: string; content: string };
 
 switch (format) {
-  case 'mini':
-    result = { format: 'mini', content: toMinifiedJSON(index) };
-    break;
   case 'dsl':
     result = { format: 'dsl', content: toDSL(index) };
     break;

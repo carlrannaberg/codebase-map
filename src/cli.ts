@@ -7,7 +7,6 @@ import { CodeIndexer, DependencyResolver } from './core/index.js';
 import type { ProjectIndex } from './types/index.js';
 import { findProjectRoot, findIndexFile } from './utils/find-project-root.js';
 import { 
-  toMinifiedJSON, 
   toDSL, 
   toGraph,
   toMarkdown,
@@ -140,7 +139,7 @@ program
 program
   .command('format')
   .description('Format the index for LLMs (outputs to stdout)')
-  .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown|mini', 'auto')
+  .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown', 'auto')
   .option('-s, --stats', 'show statistics to stderr (does not affect stdout output)')
   .action((options) => {
     const { format, stats } = options;
@@ -161,9 +160,6 @@ program
     switch (format) {
       case 'json':
         result = { format: 'json', content: JSON.stringify(index, null, 2) };
-        break;
-      case 'mini':
-        result = { format: 'mini', content: toMinifiedJSON(index) };
         break;
       case 'dsl':
         result = { format: 'dsl', content: toDSL(index) };
