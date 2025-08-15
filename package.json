@@ -1,7 +1,7 @@
 {
-  "name": "code-map",
-  "version": "1.0.0",
-  "description": "A comprehensive code indexing and analysis tool for large codebases",
+  "name": "codebase-map",
+  "version": "0.1.0",
+  "description": "A lightweight TypeScript/JavaScript code indexer that generates comprehensive project maps for LLMs",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
@@ -9,7 +9,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "code-map": "./dist/cli.js"
+    "codebase-map": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -35,13 +35,27 @@
   },
   "keywords": [
     "code-analysis",
-    "indexing",
+    "code-indexing",
+    "codebase-map",
     "typescript",
+    "javascript",
     "ast",
-    "codebase"
+    "dependency-graph",
+    "project-structure",
+    "llm",
+    "claude",
+    "ai-tools"
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carlrannaberg/codebase-map.git"
+  },
+  "bugs": {
+    "url": "https://github.com/carlrannaberg/codebase-map/issues"
+  },
+  "homepage": "https://github.com/carlrannaberg/codebase-map#readme",
   "files": [
     "dist/**/*",
     "README.md"

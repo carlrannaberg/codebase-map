@@ -19,9 +19,9 @@ import {
 const program = new Command();
 
 program
-  .name('code-map')
-  .description('A lightweight code indexing tool for TypeScript/JavaScript projects')
-  .version('1.0.0');
+  .name('codebase-map')
+  .description('A lightweight code indexer that generates comprehensive project maps for LLMs')
+  .version('0.1.0');
 
 // Scan command
 program
@@ -110,7 +110,7 @@ program
     const indexPath = findIndexFile() || path.join(process.cwd(), 'PROJECT_INDEX.json');
     
     if (!fs.existsSync(indexPath)) {
-      console.error('❌ No existing index found. Run "code-map scan" first.');
+      console.error('❌ No existing index found. Run "codebase-map scan" first.');
       process.exit(1);
     }
     
@@ -150,7 +150,7 @@ program
     const indexPath = findIndexFile();
     
     if (!indexPath || !fs.existsSync(indexPath)) {
-      console.error('❌ PROJECT_INDEX.json not found. Run "code-map scan" first.');
+      console.error('❌ PROJECT_INDEX.json not found. Run "codebase-map scan" first.');
       process.exit(1);
     }
     
@@ -213,7 +213,7 @@ program
     const indexPath = findIndexFile();
     
     if (!indexPath || !fs.existsSync(indexPath)) {
-      console.error('❌ PROJECT_INDEX.json not found. Run "code-map scan" first.');
+      console.error('❌ PROJECT_INDEX.json not found. Run "codebase-map scan" first.');
       process.exit(1);
     }
     

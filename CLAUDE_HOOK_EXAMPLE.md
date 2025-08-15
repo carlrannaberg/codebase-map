@@ -1,11 +1,11 @@
-# Using code-map with Claude Code Hooks
+# Using codebase-map with Claude Code Hooks
 
 ## Installation
 
 ```bash
-npm install -g code-map
+npm install -g codebase-map
 # or in your project
-npm install --save-dev code-map
+npm install --save-dev codebase-map
 ```
 
 ## Basic Usage
@@ -13,21 +13,21 @@ npm install --save-dev code-map
 ### 1. Generate the index
 ```bash
 # Run from anywhere in your project
-code-map scan
+codebase-map scan
 ```
 
 ### 2. Format for Claude (outputs to stdout)
 ```bash
 # Auto-format based on project size
-code-map format
+codebase-map format
 
 # Specific format
-code-map format --format dsl
-code-map format --format graph  # For large projects
-code-map format --format markdown  # Human-readable
+codebase-map format --format dsl
+codebase-map format --format graph  # For large projects
+codebase-map format --format markdown  # Human-readable
 
 # With statistics (to stderr, doesn't affect output)
-code-map format --stats
+codebase-map format --stats
 ```
 
 ## Using in Claude Hooks
@@ -38,11 +38,11 @@ code-map format --stats
 # Automatically provide project context to Claude
 
 # Generate fresh index
-code-map scan > /dev/null 2>&1
+codebase-map scan > /dev/null 2>&1
 
 # Output formatted index
 echo "=== PROJECT STRUCTURE ==="
-code-map format
+codebase-map format
 echo "=== END PROJECT STRUCTURE ==="
 ```
 
@@ -52,7 +52,7 @@ echo "=== END PROJECT STRUCTURE ==="
   "hooks": {
     "prePrompt": [
       {
-        "command": "code-map format",
+        "command": "codebase-map format",
         "description": "Include project structure"
       }
     ]
@@ -65,37 +65,31 @@ echo "=== END PROJECT STRUCTURE ==="
 ### Copy to clipboard
 ```bash
 # macOS
-code-map format | pbcopy
-
-# Linux
-code-map format | xclip -selection clipboard
-
-# Windows
-code-map format | clip
+codebase-map format | pbcopy
 ```
 
 ### Save to file
 ```bash
-code-map format --format dsl > project-structure.txt
+codebase-map format --format dsl > project-structure.txt
 ```
 
 ### Use in scripts
 ```bash
 #!/bin/bash
-PROJECT_INDEX=$(code-map format)
+PROJECT_INDEX=$(codebase-map format)
 echo "Project has $(echo "$PROJECT_INDEX" | wc -l) structure lines"
 ```
 
 ### Pipe to other tools
 ```bash
 # Count dependencies
-code-map format --format json | jq '.edges | length'
+codebase-map format --format json | jq '.edges | length'
 
 # Extract function names
-code-map format --format json | jq '.files[].functions[].name'
+codebase-map format --format json | jq '.files[].functions[].name'
 
 # Get file list
-code-map format --format json | jq -r '.nodes[]'
+codebase-map format --format json | jq -r '.nodes[]'
 ```
 
 ## Format Selection
@@ -128,20 +122,20 @@ Outputting to stdout follows Unix philosophy and enables:
 
 ### Small project (100 files)
 ```bash
-code-map format  # Uses DSL, ~2,100 tokens
+codebase-map format  # Uses DSL, ~2,100 tokens
 ```
 
 ### Large project (1000 files)
 ```bash
-code-map format  # Uses DSL, ~21,000 tokens
+codebase-map format  # Uses DSL, ~21,000 tokens
 ```
 
 ### Huge project (3000+ files)
 ```bash
-code-map format  # Auto-switches to graph, ~27,000 tokens
+codebase-map format  # Auto-switches to graph, ~27,000 tokens
 ```
 
 ### Force compact for any size
 ```bash
-code-map format --format graph  # Maximum compression
+codebase-map format --format graph  # Maximum compression
 ```
