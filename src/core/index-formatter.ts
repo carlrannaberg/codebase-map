@@ -7,6 +7,17 @@ import type { ProjectIndex } from '../types/index.js';
 export type FormatType = 'json' | 'dsl' | 'graph' | 'markdown';
 
 /**
+ * Helper to shorten file paths by removing common prefixes and extensions
+ */
+function shortenPath(path: string, removePrefix = true): string {
+  let result = path;
+  if (removePrefix) {
+    result = result.replace(/^src\//, '');
+  }
+  return result.replace(/\.(ts|tsx|js|jsx)$/, '');
+}
+
+/**
  * Format 1: Custom DSL (90% token reduction vs compact JSON)
  * Human-readable, ultra-compact format
  */
@@ -24,7 +35,7 @@ export function toDSL(index: ProjectIndex): string {
     }
     
     // File header with dependencies
-    const deps = info.dependencies.map(d => d.replace('src/', '')).join(',');
+    const deps = info.dependencies.map(d => shortenPath(d, false)).join(',');
     lines.push(`${path} > ${deps}`);
     
     // Functions
@@ -55,15 +66,6 @@ export function toDSL(index: ProjectIndex): string {
  * Readable compression with shortened paths for large projects
  */
 export function toGraph(index: ProjectIndex): string {
-  // Shorten file paths by removing common prefixes and extensions
-  const shortName = (path: string): string => {
-    return path
-      .replace(/^src\//, '')
-      .replace(/\.ts$/, '')
-      .replace(/\.tsx$/, '')
-      .replace(/\.js$/, '')
-      .replace(/\.jsx$/, '');
-  };
   
   const lines: string[] = [
     '# Graph Format: Short names, arrows show dependencies',
@@ -73,8 +75,8 @@ export function toGraph(index: ProjectIndex): string {
   
   // Build edges with shortened names
   for (const edge of index.edges) {
-    const from = shortName(edge.from);
-    const to = shortName(edge.to);
+    const from = shortenPath(edge.from);
+    const to = shortenPath(edge.to);
     lines.push(`${from}→${to}`);
   }
   
@@ -85,7 +87,7 @@ export function toGraph(index: ProjectIndex): string {
       continue;
     }
     
-    const shortPath = shortName(path);
+    const shortPath = shortenPath(path);
     const parts: string[] = [];
     
     // Compact function signatures
@@ -140,12 +142,12 @@ export function toMarkdown(index: ProjectIndex): string {
       // Shorten dependency names intelligently
       const shortDeps = info.dependencies.map(d => {
         const parts = d.split('/');
-        const fileName = parts[parts.length - 1]?.replace(/\.(ts|js|tsx|jsx)$/, '');
-        // If it's index.ts, include parent directory for clarity
+        const fileName = shortenPath(parts[parts.length - 1] || d, false);
+        // If it's index, include parent directory for clarity
         if (fileName === 'index' && parts.length > 1) {
           return `${parts[parts.length - 2]}/${fileName}`;
         }
-        return fileName || d;
+        return fileName;
       });
       const deps = [...new Set(shortDeps)].join(', ');
       
