@@ -139,20 +139,14 @@ export function toMarkdown(index: ProjectIndex): string {
     
     for (const [path, info] of files.sort()) {
       const fileName = path.split('/').pop() || path;
-      // Shorten dependency names intelligently
-      const shortDeps = info.dependencies.map(d => {
-        const parts = d.split('/');
-        const fileName = shortenPath(parts[parts.length - 1] || d, false);
-        // If it's index, include parent directory for clarity
-        if (fileName === 'index' && parts.length > 1) {
-          return `${parts[parts.length - 2]}/${fileName}`;
-        }
-        return fileName;
-      });
-      const deps = [...new Set(shortDeps)].join(', ');
       
-      // File header with arrow dependencies
-      lines.push(`### ${fileName}${deps ? ` → ${deps}` : ''}`);
+      // File header with full dependency paths for clarity
+      if (info.dependencies.length > 0) {
+        lines.push(`### ${fileName}`);
+        lines.push(`**Dependencies:** ${info.dependencies.join(', ')}`);
+      } else {
+        lines.push(`### ${fileName}`);
+      }
       
       // Compact content representation
       const content: string[] = [];

@@ -2,9 +2,9 @@
   "metadata": {
     "version": 1,
     "root": "/Users/carl/Development/agents/code-map",
-    "createdAt": "2025-08-15T19:28:48.482Z",
-    "updatedAt": "2025-08-15T19:28:48.482Z",
-    "totalFiles": 24
+    "createdAt": "2025-08-15T19:43:06.935Z",
+    "updatedAt": "2025-08-15T19:43:06.935Z",
+    "totalFiles": 22
   },
   "tree": {
     "name": "code-map",
@@ -36,10 +36,6 @@
               },
               {
                 "name": "index-formatter.ts",
-                "type": "file"
-              },
-              {
-                "name": "index-store.ts",
                 "type": "file"
               },
               {
@@ -103,10 +99,6 @@
               {
                 "name": "find-project-root.ts",
                 "type": "file"
-              },
-              {
-                "name": "index.ts",
-                "type": "file"
               }
             ]
           },
@@ -147,7 +139,6 @@
     "src/core/file-discovery.test.ts",
     "src/core/file-discovery.ts",
     "src/core/index-formatter.ts",
-    "src/core/index-store.ts",
     "src/core/index.ts",
     "src/core/indexer.test.ts",
     "src/core/indexer.ts",
@@ -161,7 +152,6 @@
     "src/types/common.ts",
     "src/types/index.ts",
     "src/utils/find-project-root.ts",
-    "src/utils/index.ts",
     "vitest.config.ts"
   ],
   "edges": [
@@ -219,10 +209,6 @@
     },
     {
       "from": "src/core/index.ts",
-      "to": "src/core/index-store.ts"
-    },
-    {
-      "from": "src/core/index.ts",
       "to": "src/core/indexer.ts"
     },
     {
@@ -267,10 +253,6 @@
     },
     {
       "from": "src/index.ts",
-      "to": "src/core/index-store.ts"
-    },
-    {
-      "from": "src/index.ts",
       "to": "src/core/index.ts"
     },
     {
@@ -292,10 +274,6 @@
     {
       "from": "src/index.ts",
       "to": "src/types/index.ts"
-    },
-    {
-      "from": "src/index.ts",
-      "to": "src/utils/index.ts"
     },
     {
       "from": "src/parsers/ast-parser.test.ts",
@@ -901,6 +879,21 @@
       ],
       "functions": [
         {
+          "name": "shortenPath",
+          "params": [
+            {
+              "name": "path",
+              "type": "string"
+            },
+            {
+              "name": "removePrefix"
+            }
+          ],
+          "isAsync": false,
+          "isExported": false,
+          "returnType": "string"
+        },
+        {
           "name": "toDSL",
           "params": [
             {
@@ -968,20 +961,6 @@
       "classes": [],
       "constants": []
     },
-    "src/core/index-store.ts": {
-      "imports": [],
-      "dependencies": [],
-      "functions": [],
-      "classes": [
-        {
-          "name": "IndexStore",
-          "isExported": true,
-          "methods": [],
-          "properties": []
-        }
-      ],
-      "constants": []
-    },
     "src/core/index.ts": {
       "imports": [
         {
@@ -1011,19 +990,11 @@
           "imported": [
             "DependencyResolver"
           ]
-        },
-        {
-          "from": "./index-store.js",
-          "kind": "export",
-          "imported": [
-            "IndexStore"
-          ]
         }
       ],
       "dependencies": [
         "src/core/dependency-resolver.ts",
         "src/core/file-discovery.ts",
-        "src/core/index-store.ts",
         "src/core/indexer.ts",
         "src/core/tree-builder.ts"
       ],
@@ -1385,10 +1356,6 @@
           "kind": "export"
         },
         {
-          "from": "./utils/index.js",
-          "kind": "export"
-        },
-        {
           "from": "./types/index.js",
           "kind": "export"
         },
@@ -1407,13 +1374,6 @@
           ]
         },
         {
-          "from": "./core/index-store.js",
-          "kind": "export",
-          "imported": [
-            "IndexStore"
-          ]
-        },
-        {
           "from": "./types/common.js",
           "kind": "export"
         },
@@ -1428,14 +1388,12 @@
       ],
       "dependencies": [
         "src/core/file-discovery.ts",
-        "src/core/index-store.ts",
         "src/core/index.ts",
         "src/core/indexer.ts",
         "src/parsers/index.ts",
         "src/types/ast.ts",
         "src/types/common.ts",
-        "src/types/index.ts",
-        "src/utils/index.ts"
+        "src/types/index.ts"
       ],
       "functions": [],
       "classes": [],
@@ -1874,13 +1832,6 @@
           "returnType": "string | null"
         }
       ],
-      "classes": [],
-      "constants": []
-    },
-    "src/utils/index.ts": {
-      "imports": [],
-      "dependencies": [],
-      "functions": [],
       "classes": [],
       "constants": []
     },
