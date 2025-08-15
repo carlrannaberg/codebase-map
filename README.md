@@ -57,7 +57,7 @@ Formats the index for LLM consumption (outputs to stdout).
 codebase-map format [options]
 
 Options:
-  -f, --format <type>  Output format: auto|json|dsl|graph|markdown|typescript|mini
+  -f, --format <type>  Output format: auto|json|dsl|graph|markdown|mini
   -s, --stats          Show statistics to stderr
 ```
 
@@ -92,7 +92,6 @@ The tool automatically selects the best format based on project size, or you can
 | `dsl` | Domain-specific language | Small-medium projects (≤2000 files) | ~95% |
 | `graph` | Ultra-compact graph notation | Large projects (>2000 files) | ~98% |
 | `markdown` | Human-readable markdown | Documentation | ~96% |
-| `typescript` | TypeScript-style definitions | Type overview | ~94% |
 | `mini` | Minified JSON | Structured data | ~92% |
 | `json` | Full JSON | Complete information | 0% |
 

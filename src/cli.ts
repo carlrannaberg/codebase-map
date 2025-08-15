@@ -9,8 +9,7 @@ import { findProjectRoot, findIndexFile } from './utils/find-project-root.js';
 import { 
   toMinifiedJSON, 
   toDSL, 
-  toGraph, 
-  toTypeScriptStyle,
+  toGraph,
   toMarkdown,
   formatAuto,
   getCompressionStats
@@ -141,7 +140,7 @@ program
 program
   .command('format')
   .description('Format the index for LLMs (outputs to stdout)')
-  .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown|typescript|mini', 'auto')
+  .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown|mini', 'auto')
   .option('-s, --stats', 'show statistics to stderr (does not affect stdout output)')
   .action((options) => {
     const { format, stats } = options;
@@ -171,9 +170,6 @@ program
         break;
       case 'graph':
         result = { format: 'graph', content: toGraph(index) };
-        break;
-      case 'typescript':
-        result = { format: 'typescript', content: toTypeScriptStyle(index) };
         break;
       case 'markdown':
         result = { format: 'markdown', content: toMarkdown(index) };

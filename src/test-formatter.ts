@@ -4,8 +4,7 @@ import fs from 'node:fs';
 import { 
   toMinifiedJSON, 
   toDSL, 
-  toGraph, 
-  toTypeScriptStyle,
+  toGraph,
   toMarkdown,
   getCompressionStats,
   formatAuto
@@ -23,7 +22,6 @@ const formats = [
   { name: 'Minified JSON', fn: toMinifiedJSON },
   { name: 'DSL Format', fn: toDSL },
   { name: 'Graph Format', fn: toGraph },
-  { name: 'TypeScript Style', fn: toTypeScriptStyle },
   { name: 'Markdown', fn: toMarkdown }
 ];
 

@@ -4,7 +4,7 @@
 
 import type { ProjectIndex } from '../types/index.js';
 
-export type FormatType = 'json' | 'mini' | 'dsl' | 'graph' | 'typescript' | 'markdown';
+export type FormatType = 'json' | 'mini' | 'dsl' | 'graph' | 'markdown';
 
 interface MinifiedIndex {
   m: {
@@ -171,49 +171,7 @@ export function toGraph(index: ProjectIndex): string {
 }
 
 /**
- * Format 4: TypeScript-style definitions (70% reduction)
- * Familiar syntax for developers and Claude
- */
-export function toTypeScriptStyle(index: ProjectIndex): string {
-  const lines: string[] = [];
-  
-  for (const [path, info] of Object.entries(index.files)) {
-    if (!info.functions.length && !info.classes.length && !info.constants.length) {
-      continue;
-    }
-    
-    // File header with arrow dependencies
-    const deps = info.dependencies.map(d => d.replace('src/', '').replace('.ts', '')).join(', ');
-    lines.push(`// ${path}${deps ? ` → ${deps}` : ''}`);
-    
-    // Functions as signatures
-    for (const fn of info.functions) {
-      const async = fn.isAsync ? 'async ' : '';
-      const exp = fn.isExported ? 'export ' : '';
-      lines.push(`${exp}${async}${fn.name}(): ${fn.returnType || 'void'}`);
-    }
-    
-    // Classes as brief definitions
-    for (const cl of info.classes) {
-      const methods = cl.methods?.map(m => `${m.name}()`).join('; ') || '';
-      const props = cl.properties?.map(p => `${p.name}: ${p.type || 'any'}`).join('; ') || '';
-      const body = [methods, props].filter(Boolean).join('; ');
-      lines.push(`class ${cl.name} { ${body} }`);
-    }
-    
-    // Constants
-    for (const c of info.constants) {
-      lines.push(`const ${c.name}: ${c.type || 'unknown'}`);
-    }
-    
-    lines.push(''); // Empty line between files
-  }
-  
-  return lines.join('\n');
-}
-
-/**
- * Format 5: Markdown with arrows (72% reduction)
+ * Format 4: Markdown with arrows (72% reduction)
  * Clean, readable markdown format with arrow dependencies
  */
 export function toMarkdown(index: ProjectIndex): string {

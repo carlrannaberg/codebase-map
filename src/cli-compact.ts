@@ -10,8 +10,7 @@ import path from 'node:path';
 import { 
   toMinifiedJSON, 
   toDSL, 
-  toGraph, 
-  toTypeScriptStyle,
+  toGraph,
   formatAuto,
   getCompressionStats
 } from './core/index-formatter.js';
@@ -42,10 +41,6 @@ switch (format) {
     break;
   case 'graph':
     result = { format: 'graph', content: toGraph(index) };
-    break;
-  case 'ts':
-  case 'typescript':
-    result = { format: 'typescript', content: toTypeScriptStyle(index) };
     break;
   case 'auto':
   default:
