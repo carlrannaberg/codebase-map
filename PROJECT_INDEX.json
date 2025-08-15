@@ -2,8 +2,8 @@
   "metadata": {
     "version": 1,
     "root": "/Users/carl/Development/agents/code-map",
-    "createdAt": "2025-08-14T22:01:21.814Z",
-    "updatedAt": "2025-08-14T22:01:21.814Z",
+    "createdAt": "2025-08-15T04:50:50.073Z",
+    "updatedAt": "2025-08-15T04:50:50.073Z",
     "totalFiles": 20
   },
   "tree": {
@@ -144,7 +144,140 @@
     "src/utils/index.ts",
     "vitest.config.ts"
   ],
-  "edges": [],
+  "edges": [
+    {
+      "from": "src/cli.ts",
+      "to": "src/core/index.ts"
+    },
+    {
+      "from": "src/cli.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/core/dependency-resolver.test.ts",
+      "to": "src/core/dependency-resolver.ts"
+    },
+    {
+      "from": "src/core/dependency-resolver.test.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/core/dependency-resolver.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/core/file-discovery.test.ts",
+      "to": "src/core/file-discovery.ts"
+    },
+    {
+      "from": "src/core/index.ts",
+      "to": "src/core/dependency-resolver.ts"
+    },
+    {
+      "from": "src/core/index.ts",
+      "to": "src/core/file-discovery.ts"
+    },
+    {
+      "from": "src/core/index.ts",
+      "to": "src/core/index-store.ts"
+    },
+    {
+      "from": "src/core/index.ts",
+      "to": "src/core/indexer.ts"
+    },
+    {
+      "from": "src/core/index.ts",
+      "to": "src/core/tree-builder.ts"
+    },
+    {
+      "from": "src/core/indexer.test.ts",
+      "to": "src/core/indexer.ts"
+    },
+    {
+      "from": "src/core/indexer.test.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/core/indexer.ts",
+      "to": "src/core/dependency-resolver.ts"
+    },
+    {
+      "from": "src/core/indexer.ts",
+      "to": "src/core/file-discovery.ts"
+    },
+    {
+      "from": "src/core/indexer.ts",
+      "to": "src/core/tree-builder.ts"
+    },
+    {
+      "from": "src/core/indexer.ts",
+      "to": "src/parsers/ast-parser.ts"
+    },
+    {
+      "from": "src/core/indexer.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/core/tree-builder.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/core/file-discovery.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/core/index-store.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/core/index.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/core/indexer.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/parsers/index.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/types/ast.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/types/common.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/index.ts",
+      "to": "src/utils/index.ts"
+    },
+    {
+      "from": "src/parsers/ast-parser.test.ts",
+      "to": "src/parsers/ast-parser.ts"
+    },
+    {
+      "from": "src/parsers/ast-parser.ts",
+      "to": "src/types/index.ts"
+    },
+    {
+      "from": "src/parsers/index.ts",
+      "to": "src/parsers/ast-parser.ts"
+    },
+    {
+      "from": "src/types/index.ts",
+      "to": "src/types/ast.ts"
+    },
+    {
+      "from": "src/types/index.ts",
+      "to": "src/types/common.ts"
+    }
+  ],
   "files": {
     "eslint.config.js": {
       "imports": [
@@ -203,7 +336,10 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/core/index.ts",
+        "src/types/index.ts"
+      ],
       "functions": [
         {
           "name": "main",
@@ -270,7 +406,10 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/core/dependency-resolver.ts",
+        "src/types/index.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": []
@@ -290,7 +429,9 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/types/index.ts"
+      ],
       "functions": [],
       "classes": [
         {
@@ -497,7 +638,9 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/core/file-discovery.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": [
@@ -680,7 +823,13 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/core/dependency-resolver.ts",
+        "src/core/file-discovery.ts",
+        "src/core/index-store.ts",
+        "src/core/indexer.ts",
+        "src/core/tree-builder.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": []
@@ -729,7 +878,10 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/core/indexer.ts",
+        "src/types/index.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": [
@@ -784,7 +936,13 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/core/dependency-resolver.ts",
+        "src/core/file-discovery.ts",
+        "src/core/tree-builder.ts",
+        "src/parsers/ast-parser.ts",
+        "src/types/index.ts"
+      ],
       "functions": [],
       "classes": [
         {
@@ -916,7 +1074,9 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/types/index.ts"
+      ],
       "functions": [],
       "classes": [
         {
@@ -1069,7 +1229,17 @@
           "kind": "export"
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/core/file-discovery.ts",
+        "src/core/index-store.ts",
+        "src/core/index.ts",
+        "src/core/indexer.ts",
+        "src/parsers/index.ts",
+        "src/types/ast.ts",
+        "src/types/common.ts",
+        "src/types/index.ts",
+        "src/utils/index.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": []
@@ -1101,7 +1271,9 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/parsers/ast-parser.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": [
@@ -1141,7 +1313,9 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/types/index.ts"
+      ],
       "functions": [],
       "classes": [
         {
@@ -1357,7 +1531,9 @@
           ]
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/parsers/ast-parser.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": []
@@ -1387,7 +1563,10 @@
           "kind": "export"
         }
       ],
-      "dependencies": [],
+      "dependencies": [
+        "src/types/ast.ts",
+        "src/types/common.ts"
+      ],
       "functions": [],
       "classes": [],
       "constants": []

@@ -66,8 +66,8 @@ export class DependencyResolver {
     currentDir: string,
     allFiles: string[]
   ): string | undefined {
-    // Resolve the relative path
-    const resolvedPath = path.resolve(currentDir, specifier);
+    // Resolve the relative path, keeping it relative to the project root
+    const resolvedPath = path.join(currentDir, specifier);
     const normalizedPath = path.normalize(resolvedPath).replace(/\\/g, '/');
 
     // Try to find the file in various ways
@@ -93,11 +93,24 @@ export class DependencyResolver {
     // Make path relative to project root (remove leading slash if present)
     const relativePath = basePath.startsWith('/') ? basePath.slice(1) : basePath;
     
-    // 1. Try exact match if it already has an extension
+    // 1. Handle files with extensions
     if (path.extname(relativePath)) {
-      candidates.push(relativePath);
+      const ext = path.extname(relativePath);
+      const baseName = relativePath.slice(0, -ext.length);
+      
+      // For .js/.jsx imports, prioritize .ts/.tsx equivalents (ESM TypeScript pattern)
+      if (ext === '.js') {
+        candidates.push(baseName + '.ts');  // Try .ts first
+        candidates.push(relativePath);      // Then try actual .js
+      } else if (ext === '.jsx') {
+        candidates.push(baseName + '.tsx'); // Try .tsx first
+        candidates.push(relativePath);      // Then try actual .jsx
+      } else {
+        // For other extensions (.ts, .tsx, etc.), try exact match first
+        candidates.push(relativePath);
+      }
     } else {
-      // 2. Try adding supported extensions
+      // 2. Try adding supported extensions (no extension provided)
       for (const ext of this.EXTENSIONS) {
         candidates.push(relativePath + ext);
       }

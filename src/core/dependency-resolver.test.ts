@@ -59,32 +59,111 @@ describe('DependencyResolver', () => {
       expect(result).toEqual([]);
     });
 
+    it('should resolve .js imports to .ts files (ESM TypeScript pattern)', () => {
+      const imports: ImportInfo[] = [
+        { from: './utils.js', kind: 'import' },
+        { from: './components/Button.js', kind: 'import' }
+      ];
+
+      const allFiles = ['src/index.ts', 'src/utils.ts', 'src/components/Button.ts'];
+      const result = DependencyResolver.resolveImports(imports, 'src/index.ts', allFiles);
+
+      expect(result).toEqual(['src/components/Button.ts', 'src/utils.ts']);
+    });
+
+    it('should resolve .jsx imports to .tsx files', () => {
+      const imports: ImportInfo[] = [
+        { from: './Button.jsx', kind: 'import' }
+      ];
+
+      const allFiles = ['src/Button.tsx', 'src/index.ts'];
+      const result = DependencyResolver.resolveImports(imports, 'src/index.ts', allFiles);
+
+      expect(result).toEqual(['src/Button.tsx']);
+    });
+
+    it('should fall back to actual .js files if .ts does not exist', () => {
+      const imports: ImportInfo[] = [
+        { from: './legacy.js', kind: 'import' }
+      ];
+
+      const allFiles = ['src/index.ts', 'src/legacy.js'];
+      const result = DependencyResolver.resolveImports(imports, 'src/index.ts', allFiles);
+
+      expect(result).toEqual(['src/legacy.js']);
+    });
+
+    it('should handle .ts imports directly', () => {
+      const imports: ImportInfo[] = [
+        { from: './utils.ts', kind: 'import' }
+      ];
+
+      const allFiles = ['src/index.ts', 'src/utils.ts'];
+      const result = DependencyResolver.resolveImports(imports, 'src/index.ts', allFiles);
+
+      expect(result).toEqual(['src/utils.ts']);
+    });
+
+    it('should resolve imports without extensions by trying all extensions', () => {
+      const imports: ImportInfo[] = [
+        { from: './utils', kind: 'import' }
+      ];
+
+      const allFiles = ['src/index.ts', 'src/utils.ts'];
+      const result = DependencyResolver.resolveImports(imports, 'src/index.ts', allFiles);
+
+      expect(result).toEqual(['src/utils.ts']);
+    });
+
+    it('should resolve index files when importing directories', () => {
+      const imports: ImportInfo[] = [
+        { from: './components', kind: 'import' }
+      ];
+
+      const allFiles = ['src/index.ts', 'src/components/index.ts'];
+      const result = DependencyResolver.resolveImports(imports, 'src/index.ts', allFiles);
+
+      expect(result).toEqual(['src/components/index.ts']);
+    });
+
+    it('should handle nested directory imports with .js extension', () => {
+      const imports: ImportInfo[] = [
+        { from: '../core/utils.js', kind: 'import' }
+      ];
+
+      const allFiles = ['src/tests/test.ts', 'src/core/utils.ts'];
+      const result = DependencyResolver.resolveImports(imports, 'src/tests/test.ts', allFiles);
+
+      expect(result).toEqual(['src/core/utils.ts']);
+    });
+
     // TODO: Fix path resolution to handle relative imports properly
     // The current implementation has issues with path.resolve() creating absolute paths
     // that don't match the relative paths in allFiles array
   });
 
   describe('buildDependencyGraph', () => {
-    it('should build dependency edges from import maps', () => {
-      // Since resolveImports currently doesn't work properly, 
-      // this will return empty edges until path resolution is fixed
+    it('should build dependency edges from import maps with .js to .ts mapping', () => {
       const files = {
         'src/index.ts': [
-          { from: './utils', kind: 'import' as const },
-          { from: './components/Button', kind: 'import' as const }
+          { from: './utils.js', kind: 'import' as const },
+          { from: './components/Button.js', kind: 'import' as const }
         ],
-        'src/components/Button.tsx': [
-          { from: '../utils', kind: 'import' as const }
+        'src/components/Button.ts': [
+          { from: '../utils.js', kind: 'import' as const }
         ],
-        'src/utils/index.ts': []
+        'src/utils.ts': []
       };
 
-      const allFiles = ['src/index.ts', 'src/components/Button.tsx', 'src/utils/index.ts'];
+      const allFiles = ['src/index.ts', 'src/components/Button.ts', 'src/utils.ts'];
 
       const result = DependencyResolver.buildDependencyGraph(files, allFiles);
 
-      // Current implementation returns empty due to path resolution issues
-      expect(result).toEqual([]);
+      // Should now properly resolve .js imports to .ts files
+      expect(result).toContainEqual({ from: 'src/index.ts', to: 'src/utils.ts' });
+      expect(result).toContainEqual({ from: 'src/index.ts', to: 'src/components/Button.ts' });
+      expect(result).toContainEqual({ from: 'src/components/Button.ts', to: 'src/utils.ts' });
+      expect(result).toHaveLength(3);
     });
 
     it('should handle files with no dependencies', () => {
