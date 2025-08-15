@@ -4,7 +4,7 @@ A lightweight TypeScript/JavaScript code indexer that generates comprehensive pr
 
 ## Features
 
-- **AST-based analysis** - Accurate extraction of functions, classes, interfaces, and type definitions
+- **AST-based analysis** - Accurate extraction of functions, classes, and constants
 - **Dependency resolution** - Tracks imports/exports and builds a complete dependency graph
 - **Multiple output formats** - Optimized for different project sizes and use cases
 - **LLM-optimized** - Formats designed to minimize token usage while preserving structure
@@ -127,12 +127,16 @@ codebase-map format | pbcopy
 ## Example Output (DSL Format)
 
 ```
-src/cli.ts > core/index.ts,types/index.ts
-  fn main():Promise<void> async
-  fn handleScanCommand(options:ScanOptions):Promise<void> async
-src/core/indexer.ts > types/index.ts,parsers/ast-parser.ts
-  cl CodeIndexer(7m,1p)
-src/types/index.ts > types/ast.ts,types/common.ts
+src/core/dependency-resolver.ts > types/index.ts
+  cl DependencyResolver(9m,2p)
+src/core/index-formatter.ts > types/index.ts
+  fn toMinifiedJSON(index:ProjectIndex):string
+  fn toDSL(index:ProjectIndex):string
+  fn toGraph(index:ProjectIndex):string
+  fn formatAuto(index:ProjectIndex):{ format: FormatType; content: string }
+src/utils/find-project-root.ts > 
+  fn findProjectRoot(startDir:string):string | null
+  fn findIndexFile(startDir:string):string | null
 ```
 
 ## Performance

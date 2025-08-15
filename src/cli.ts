@@ -21,7 +21,7 @@ const program = new Command();
 program
   .name('codebase-map')
   .description('A lightweight code indexer that generates comprehensive project maps for LLMs')
-  .version('0.1.0');
+  .version('0.1.1');
 
 // Scan command
 program
