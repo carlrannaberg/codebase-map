@@ -137,7 +137,17 @@ export function toMarkdown(index: ProjectIndex): string {
     
     for (const [path, info] of files.sort()) {
       const fileName = path.split('/').pop() || path;
-      const deps = info.dependencies.map(d => d.split('/').pop()?.replace('.ts', '')).join(', ');
+      // Shorten dependency names intelligently
+      const shortDeps = info.dependencies.map(d => {
+        const parts = d.split('/');
+        const fileName = parts[parts.length - 1]?.replace(/\.(ts|js|tsx|jsx)$/, '');
+        // If it's index.ts, include parent directory for clarity
+        if (fileName === 'index' && parts.length > 1) {
+          return `${parts[parts.length - 2]}/${fileName}`;
+        }
+        return fileName || d;
+      });
+      const deps = [...new Set(shortDeps)].join(', ');
       
       // File header with arrow dependencies
       lines.push(`### ${fileName}${deps ? ` → ${deps}` : ''}`);
@@ -150,9 +160,14 @@ export function toMarkdown(index: ProjectIndex): string {
       if (fns) content.push(`**Functions:** ${fns}`);
       
       // Classes with counts
-      const cls = info.classes.map(c => 
-        `${c.name}(${c.methods?.length || 0}m/${c.properties?.length || 0}p)`
-      ).join(', ');
+      const cls = info.classes.map(c => {
+        const methodCount = c.methods?.length || 0;
+        const propCount = c.properties?.length || 0;
+        if (methodCount === 0 && propCount === 0) {
+          return c.name;
+        }
+        return `${c.name} (${methodCount} methods, ${propCount} properties)`;
+      }).join(', ');
       if (cls) content.push(`**Classes:** ${cls}`);
       
       // Constants (just names)

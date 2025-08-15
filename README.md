@@ -91,7 +91,7 @@ The tool automatically selects the best format based on project size, or you can
 |--------|-------------|----------|-----------------|
 | `dsl` | Domain-specific language | Most projects (≤5000 files) | ~90% |
 | `graph` | Dependency graph with signatures | Very large projects (>5000 files) | ~92% |
-| `markdown` | Human-readable markdown | Documentation | ~93% |
+| `markdown` | Human-readable markdown | Documentation | ~92% |
 | `json` | Compact JSON | Baseline | 0% |
 
 ## Integration with Claude
@@ -142,7 +142,8 @@ src/utils/find-project-root.ts >
 - Processes ~400 files/second
 - Generates ~29 tokens/file in DSL format  
 - Generates ~24 tokens/file in graph format
-- 90-93% token reduction vs compact JSON
+- Generates ~23 tokens/file in markdown format
+- 90-92% token reduction vs compact JSON
 
 ## Requirements
 

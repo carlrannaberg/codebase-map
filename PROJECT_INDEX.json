@@ -2,8 +2,8 @@
   "metadata": {
     "version": 1,
     "root": "/Users/carl/Development/agents/code-map",
-    "createdAt": "2025-08-15T15:10:39.758Z",
-    "updatedAt": "2025-08-15T15:10:39.758Z",
+    "createdAt": "2025-08-15T19:28:48.482Z",
+    "updatedAt": "2025-08-15T19:28:48.482Z",
     "totalFiles": 24
   },
   "tree": {
@@ -366,10 +366,8 @@
           "from": "./core/index-formatter.js",
           "kind": "import",
           "imported": [
-            "toMinifiedJSON",
             "toDSL",
             "toGraph",
-            "toTypeScriptStyle",
             "formatAuto",
             "getCompressionStats"
           ]
@@ -473,10 +471,8 @@
           "from": "./core/index-formatter.js",
           "kind": "import",
           "imported": [
-            "toMinifiedJSON",
             "toDSL",
             "toGraph",
-            "toTypeScriptStyle",
             "toMarkdown",
             "formatAuto",
             "getCompressionStats"
@@ -905,18 +901,6 @@
       ],
       "functions": [
         {
-          "name": "toMinifiedJSON",
-          "params": [
-            {
-              "name": "index",
-              "type": "ProjectIndex"
-            }
-          ],
-          "isAsync": false,
-          "isExported": true,
-          "returnType": "string"
-        },
-        {
           "name": "toDSL",
           "params": [
             {
@@ -930,18 +914,6 @@
         },
         {
           "name": "toGraph",
-          "params": [
-            {
-              "name": "index",
-              "type": "ProjectIndex"
-            }
-          ],
-          "isAsync": false,
-          "isExported": true,
-          "returnType": "string"
-        },
-        {
-          "name": "toTypeScriptStyle",
           "params": [
             {
               "name": "index",
@@ -1774,10 +1746,8 @@
           "from": "./core/index-formatter.js",
           "kind": "import",
           "imported": [
-            "toMinifiedJSON",
             "toDSL",
             "toGraph",
-            "toTypeScriptStyle",
             "toMarkdown",
             "getCompressionStats",
             "formatAuto"
