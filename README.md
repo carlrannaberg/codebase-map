@@ -39,14 +39,14 @@ codebase-map format | pbcopy
 ## Commands
 
 ### `scan`
-Analyzes your codebase and generates a PROJECT_INDEX.json file.
+Analyzes your codebase and generates a .codebasemap file.
 
 ```bash
 codebase-map scan [options]
 
 Options:
   -r, --root <path>    Root directory to scan (default: auto-detect)
-  -o, --output <path>  Output file path (default: PROJECT_INDEX.json)
+  -o, --output <path>  Output file path (default: .codebasemap)
   -v, --verbose        Show detailed progress
 ```
 

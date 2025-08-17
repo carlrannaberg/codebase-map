@@ -9,12 +9,13 @@ import {
   formatAuto
 } from './core/index-formatter.js';
 import type { ProjectIndex } from './types/index.js';
+import { DEFAULT_INDEX_FILENAME } from './constants.js';
 
 // Load the current index
-const indexPath = 'PROJECT_INDEX.json';
+const indexPath = DEFAULT_INDEX_FILENAME;
 const index: ProjectIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
 
-console.log('=== Compression Analysis for PROJECT_INDEX.json ===\n');
+console.log(`=== Compression Analysis for ${DEFAULT_INDEX_FILENAME} ===\n`);
 
 // Test each format
 const formats = [
@@ -36,7 +37,7 @@ for (const format of formats) {
   console.log('');
   
   // Save sample
-  fs.writeFileSync(`PROJECT_INDEX.${format.name.toLowerCase().replace(' ', '_')}.txt`, compressed);
+  fs.writeFileSync(`${DEFAULT_INDEX_FILENAME}.${format.name.toLowerCase().replace(' ', '_')}.txt`, compressed);
 }
 
 // Test auto-format selection
@@ -57,4 +58,4 @@ for (const size of sizes) {
   console.log(`| ${size.toString().padEnd(5)} | ${original.toLocaleString().padEnd(12)} | ${dsl.toLocaleString().padEnd(10)} | ${graph.toLocaleString().padEnd(12)} |`);
 }
 
-console.log('\n✅ Sample files saved as PROJECT_INDEX.*.txt for inspection');
+console.log(`\n✅ Sample files saved as ${DEFAULT_INDEX_FILENAME}.*.txt for inspection`);

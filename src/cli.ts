@@ -6,6 +6,7 @@ import path from 'node:path';
 import { CodeIndexer, DependencyResolver } from './core/index.js';
 import type { ProjectIndex } from './types/index.js';
 import { findProjectRoot, findIndexFile } from './utils/find-project-root.js';
+import { DEFAULT_INDEX_FILENAME } from './constants.js';
 import { 
   toDSL, 
   toGraph,
@@ -26,7 +27,7 @@ program
   .command('scan')
   .description('Scan the entire project and generate index')
   .option('-r, --root <path>', 'root directory to scan')
-  .option('-o, --output <path>', 'output file path', 'PROJECT_INDEX.json')
+  .option('-o, --output <path>', 'output file path', DEFAULT_INDEX_FILENAME)
   .option('-v, --verbose', 'show detailed progress')
   .action(async (options) => {
     const { output, verbose } = options;
@@ -105,7 +106,7 @@ program
   .option('-r, --root <path>', 'root directory')
   .action(async (file, options) => {
     // Find existing index file
-    const indexPath = findIndexFile() || path.join(process.cwd(), 'PROJECT_INDEX.json');
+    const indexPath = findIndexFile() || path.join(process.cwd(), DEFAULT_INDEX_FILENAME);
     
     if (!fs.existsSync(indexPath)) {
       console.error('❌ No existing index found. Run "codebase-map scan" first.');

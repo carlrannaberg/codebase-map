@@ -220,7 +220,7 @@ code-map/
 ├── tests/                    # Integration tests
 ├── reports/                  # All project reports
 ├── temp/                     # Temporary files (gitignored)
-└── PROJECT_INDEX.json       # Generated index file
+└── .codebasemap             # Generated index file
 ```
 
 ### Reports Directory
@@ -299,7 +299,7 @@ analyze-*.sh
 .simple-task-master/lock
 
 # Generated index
-PROJECT_INDEX.json
+.codebasemap
 
 # OS files
 .DS_Store

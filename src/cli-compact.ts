@@ -14,15 +14,16 @@ import {
   getCompressionStats
 } from './core/index-formatter.js';
 import type { ProjectIndex } from './types/index.js';
+import { DEFAULT_INDEX_FILENAME } from './constants.js';
 
 const args = process.argv.slice(2);
 const formatArg = args.find(a => a.startsWith('--format='));
 const format = formatArg?.split('=')[1] || 'auto';
 
 // Load the index
-const indexPath = path.join(process.cwd(), 'PROJECT_INDEX.json');
+const indexPath = path.join(process.cwd(), DEFAULT_INDEX_FILENAME);
 if (!fs.existsSync(indexPath)) {
-  console.error('❌ PROJECT_INDEX.json not found. Run "npm run scan" first.');
+  console.error(`❌ ${DEFAULT_INDEX_FILENAME} not found. Run "npm run scan" first.`);
   process.exit(1);
 }
 
@@ -45,7 +46,7 @@ switch (format) {
 }
 
 // Save compact version
-const outputPath = path.join(process.cwd(), 'PROJECT_INDEX.compact');
+const outputPath = path.join(process.cwd(), DEFAULT_INDEX_FILENAME + '.compact');
 fs.writeFileSync(outputPath, result.content);
 
 // Show stats

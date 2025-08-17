@@ -72,7 +72,7 @@ npm run scan
 **Result**: ✅ **PASS**
 - ✅ Completes successfully in 0.06 seconds
 - ✅ Processes 20 files correctly
-- ✅ Generates valid PROJECT_INDEX.json
+- ✅ Generates valid .codebasemap
 - ❌ Reports 0 dependencies (should be > 0)
 
 ### 4.2 Update Command
@@ -161,7 +161,7 @@ Duration    740ms
 ## 7. Output Format Validation
 
 ### 7.1 JSON Schema Compliance
-The generated PROJECT_INDEX.json perfectly matches the specification:
+The generated .codebasemap perfectly matches the specification:
 
 ✅ **Metadata Section**:
 ```json
@@ -292,8 +292,8 @@ The implementation exactly matches the specified architecture:
                 │
                 ▼
         ┌──────────────┐
-        │PROJECT_INDEX │ ✅
-        │    .JSON     │
+        │.codebasemap  │ ✅
+        │              │
         └──────────────┘
 ```
 
