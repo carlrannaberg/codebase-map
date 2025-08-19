@@ -392,15 +392,29 @@ The project has a detailed task breakdown in `.simple-task-master/tasks/`. Key i
 
 ## Git Commit Conventions
 
-Based on the project's commit history:
-- **Format**: Simple imperative mood messages
-- **Structure**: `<verb> <what>`
+This project now uses Conventional Commits format:
+- **Format**: `<type>(<scope>): <description>`
+- **Types**: 
+  - `feat`: New feature
+  - `fix`: Bug fix
+  - `docs`: Documentation changes
+  - `style`: Code style changes (formatting, etc.)
+  - `refactor`: Code refactoring
+  - `perf`: Performance improvements
+  - `test`: Test additions or changes
+  - `build`: Build system changes
+  - `ci`: CI configuration changes
+  - `chore`: Other changes that don't modify src or test files
+- **Scope**: Optional, indicates the affected component (e.g., `cli`, `patterns`, `core`)
+- **Description**: Imperative mood, lowercase, no period at end
+- **Breaking changes**: Add `BREAKING CHANGE:` in body or `!` after type/scope
 - **Examples**: 
-  - "Add code indexer specification"
-  - "Implement file discovery module"
-  - "Fix dependency resolution bug"
-- **Length**: Keep under 50 characters
-- **No prefixes**: No conventional commit prefixes needed
+  - `feat(patterns): add include/exclude file filtering`
+  - `fix(cli): correct pattern validation error messages`
+  - `feat!: change output filename to .codebasemap`
+  - `docs(readme): add pattern usage examples`
+  - `perf(cache): implement LRU caching for patterns`
+- **Length**: Keep subject line under 50 characters
 
 ## Contributing Guidelines
 
