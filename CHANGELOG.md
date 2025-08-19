@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2025-08-19
+
+### Added
+- **Tree Format**: New ASCII art visualization format for project structure
+  - Visual directory tree using ASCII characters (├── └── │)
+  - Available via `--format tree` for any project size
+  - 97% token reduction - most efficient format for structure visualization
+  - Complements content-focused formats (dsl, graph, markdown)
+  - Sorts directories before files, alphabetically within each type
+- **Enhanced Format Selection**: Improved auto-format selection logic
+  - Tree format excluded from auto-selection (manual choice only)
+  - Better documentation of when to use each format
+- **Comprehensive Testing**: Added 18 test cases for tree format functionality
+  - Edge cases: empty projects, single files, deep nesting
+  - Performance tests for wide structures
+  - Integration tests with existing formatter infrastructure
+
+### Changed
+- **Format Documentation**: Enhanced README with comprehensive format selection guide
+  - Clear use cases for each format (tree, dsl, graph, markdown)
+  - Token budget planning guidelines
+  - Project size examples with specific CLI commands
+- **CLI Help**: Updated format options to include `tree`
+- **Format Auto-Selection**: DSL format now default for projects ≤5000 files
+
+### Documentation
+- Added format comparison table with token reduction metrics
+- Added practical CLI examples by project size
+- Added tree format example output
+- Updated performance metrics to include tree format
+
 ## [0.3.0] - 2025-08-17
 
 ### Breaking Changes
