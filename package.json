@@ -31,6 +31,7 @@
     "scan": "tsx src/cli.ts scan",
     "update": "tsx src/cli.ts update",
     "query": "tsx src/cli.ts query",
+    "benchmark": "tsx src/utils/pattern-performance-benchmark.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

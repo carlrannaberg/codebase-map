@@ -3,7 +3,7 @@
  */
 
 import * as path from 'node:path';
-import type { ProjectIndex, FileInfo } from '../types/index.js';
+import type { ProjectIndex, FileInfo, FilterOptions } from '../types/index.js';
 import { FileDiscovery } from './file-discovery.js';
 import { TreeBuilder } from './tree-builder.js';
 import { ASTParser } from '../parsers/ast-parser.js';
@@ -11,9 +11,21 @@ import { DependencyResolver } from './dependency-resolver.js';
 
 export class CodeIndexer {
   private rootPath: string;
+  private filterOptions: FilterOptions;
 
-  constructor(rootPath: string = process.cwd()) {
+  constructor(rootPath: string = process.cwd(), filterOptions: FilterOptions = {}) {
     this.rootPath = path.resolve(rootPath);
+    this.filterOptions = filterOptions;
+  }
+
+  /**
+   * Create a CodeIndexer instance with options (factory method for future expansion)
+   * @param rootPath - Root directory to scan
+   * @param filterOptions - Optional filtering options
+   * @returns New CodeIndexer instance
+   */
+  static create(rootPath: string = process.cwd(), filterOptions: FilterOptions = {}): CodeIndexer {
+    return new CodeIndexer(rootPath, filterOptions);
   }
 
   /**
@@ -27,7 +39,7 @@ export class CodeIndexer {
     try {
       // Step 1: Discover files
       progressCallback?.({ step: 'Discovering files', current: 0, total: 4 });
-      const files = await FileDiscovery.discoverFiles(this.rootPath);
+      const files = await FileDiscovery.discoverFiles(this.rootPath, this.filterOptions);
       
       if (files.length === 0) {
         throw new Error('No TypeScript/JavaScript files found in the project');
@@ -79,6 +91,12 @@ export class CodeIndexer {
       // Validate file path
       if (!FileDiscovery.isSupportedFile(filePath)) {
         throw new Error(`Unsupported file type: ${filePath}`);
+      }
+
+      // Check if file would be included with current filter options
+      if (!this.wouldFileBeIncluded(filePath)) {
+        // File no longer matches patterns, remove it from index
+        return this.removeFileFromIndex(filePath, existingIndex);
       }
 
       // Parse the updated file
@@ -262,6 +280,101 @@ export class CodeIndexer {
     }
 
     return filteredEdges;
+  }
+
+  /**
+   * Check if a file would be included with current filter options
+   * @param filePath - Relative file path to check
+   * @returns True if file would be included
+   */
+  private wouldFileBeIncluded(filePath: string): boolean {
+    // If no filter options, include all supported files
+    if (!this.filterOptions.include && !this.filterOptions.exclude) {
+      return true;
+    }
+
+    // Check include patterns first
+    if (this.filterOptions.include && this.filterOptions.include.length > 0) {
+      // For include patterns, file must match at least one pattern
+      const included = this.filterOptions.include.some(pattern => {
+        return this.matchesGlobPattern(filePath, pattern);
+      });
+      if (!included) {
+        return false;
+      }
+    }
+
+    // Check exclude patterns
+    if (this.filterOptions.exclude && this.filterOptions.exclude.length > 0) {
+      const excluded = this.filterOptions.exclude.some(pattern => {
+        return this.matchesGlobPattern(filePath, pattern);
+      });
+      if (excluded) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if a file path matches a glob pattern
+   * @param filePath - File path to test
+   * @param pattern - Glob pattern
+   * @returns True if file matches pattern
+   */
+  private matchesGlobPattern(filePath: string, pattern: string): boolean {
+    // Simple glob matching for common patterns
+    // Handle the most common cases: **, *, and literal strings
+    
+    // Escape special regex characters except * and ?
+    let regexPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape regex chars except * and ?
+      .replace(/\*\*/g, '___DOUBLESTAR___')   // Placeholder for **
+      .replace(/\*/g, '[^/]*')                // * matches any chars except /
+      .replace(/___DOUBLESTAR___/g, '.*')     // ** matches any chars including /
+      .replace(/\?/g, '[^/]');                // ? matches single char except /
+
+    // Anchor the pattern
+    regexPattern = '^' + regexPattern + '$';
+
+    try {
+      const regex = new RegExp(regexPattern);
+      return regex.test(filePath);
+    } catch {
+      // If regex compilation fails, fall back to exact match
+      return filePath === pattern;
+    }
+  }
+
+  /**
+   * Remove a file from the index (helper method)
+   * @param filePath - Relative path to the file to remove
+   * @param existingIndex - Existing project index
+   * @returns Updated project index
+   */
+  private removeFileFromIndex(filePath: string, existingIndex: ProjectIndex): ProjectIndex {
+    const updatedIndex = { ...existingIndex };
+
+    // Remove from files
+    delete updatedIndex.files[filePath];
+
+    // Remove from nodes
+    updatedIndex.nodes = updatedIndex.nodes.filter(node => node !== filePath);
+
+    // Remove edges involving this file
+    updatedIndex.edges = updatedIndex.edges.filter(
+      edge => edge.from !== filePath && edge.to !== filePath
+    );
+
+    // Update metadata
+    updatedIndex.metadata.updatedAt = new Date().toISOString();
+    updatedIndex.metadata.totalFiles = updatedIndex.nodes.length;
+
+    // Rebuild tree without this file
+    updatedIndex.tree = TreeBuilder.buildTree(updatedIndex.nodes, path.basename(this.rootPath));
+
+    return updatedIndex;
   }
 
   /**

@@ -7,6 +7,7 @@ import * as fs from 'node:fs';
 import fastGlob from 'fast-glob';
 import ignore from 'ignore';
 import { CodeIndexer } from './indexer.js';
+import { FileDiscovery } from './file-discovery.js';
 import type { ProjectIndex } from '../types/index.js';
 
 // Mock fs and other dependencies
@@ -18,6 +19,11 @@ const mockFs = vi.mocked(fs);
 
 interface MockFsPromises {
   readFile: ReturnType<typeof vi.fn>;
+}
+
+// Interface for testing private methods
+interface CodeIndexerWithPrivateMethods {
+  wouldFileBeIncluded(filePath: string): boolean;
 }
 
 describe('CodeIndexer Integration Tests', () => {
@@ -451,6 +457,154 @@ export function newFunction(): void {}
       expect(result.files['src/special-file.ts'].constants[0].name).toBe('SPECIAL_CONSTANT');
       expect(result.files['src/another_file.ts'].constants[0].name).toBe('ANOTHER_CONSTANT');
       expect(result.files['src/file.with.dots.ts'].constants[0].name).toBe('DOTTED_CONSTANT');
+    });
+  });
+
+  describe('FilterOptions integration', () => {
+    it('should accept FilterOptions in constructor and maintain backward compatibility', async () => {
+      mockFiles = {
+        'src/index.ts': 'export const test = true;',
+        'src/utils.ts': 'export function helper() { return 42; }',
+        'src/types.ts': 'export interface User { id: string; }'
+      };
+
+      // Test backward compatibility - no filter options
+      const oldIndexer = new CodeIndexer('/test/project');
+      const oldResult = await oldIndexer.processProject();
+
+      // Test new constructor with filter options
+      const newIndexer = new CodeIndexer('/test/project', {});
+      const newResult = await newIndexer.processProject();
+
+      // Both should produce the same result
+      expect(oldResult.nodes).toEqual(newResult.nodes);
+      expect(oldResult.metadata.totalFiles).toBe(newResult.metadata.totalFiles);
+    });
+
+    it('should pass FilterOptions to FileDiscovery.discoverFiles', async () => {
+      const filterOptions = {
+        include: ['src/**/*.ts'],
+        exclude: ['**/*.test.ts']
+      };
+
+      mockFiles = {
+        'src/index.ts': 'export const test = true;',
+        'src/utils.ts': 'export function helper() { return 42; }',
+        'test/index.test.ts': 'import { test } from "../src/index";'
+      };
+
+      const indexer = new CodeIndexer('/test/project', filterOptions);
+      
+      // Mock FileDiscovery.discoverFiles to verify it's called with filter options
+      const originalDiscoverFiles = FileDiscovery.discoverFiles;
+      const mockDiscoverFiles = vi.fn().mockResolvedValue(['src/index.ts', 'src/utils.ts']);
+      FileDiscovery.discoverFiles = mockDiscoverFiles;
+
+      try {
+        await indexer.processProject();
+        
+        // Verify FileDiscovery.discoverFiles was called with correct arguments
+        expect(mockDiscoverFiles).toHaveBeenCalledWith('/test/project', filterOptions);
+      } finally {
+        // Restore original method
+        FileDiscovery.discoverFiles = originalDiscoverFiles;
+      }
+    });
+
+    it('should use static create factory method', async () => {
+      mockFiles = {
+        'src/index.ts': 'export const test = true;'
+      };
+
+      const filterOptions = { include: ['src/**/*.ts'] };
+      const indexer = CodeIndexer.create('/test/project', filterOptions);
+      
+      expect(indexer).toBeInstanceOf(CodeIndexer);
+
+      const result = await indexer.processProject();
+      expect(result.nodes).toBeDefined();
+    });
+
+    it('should handle updateFile with filter options - file still matches', async () => {
+      mockFiles = {
+        'src/index.ts': 'export const original = true;',
+        'src/utils.ts': 'export function helper() { return 42; }'
+      };
+
+      const filterOptions = { include: ['src/*.ts', 'src/**/*.ts'] };
+      const indexer = new CodeIndexer('/test/project', filterOptions);
+      const existingIndex = await indexer.processProject();
+
+      // Update file content
+      mockFiles['src/index.ts'] = 'export const updated = true;';
+
+      const result = await indexer.updateFile('src/index.ts', existingIndex);
+
+      // File should be updated since it still matches filter
+      expect(result.files['src/index.ts']).toBeDefined();
+      expect(result.files['src/index.ts'].constants).toBeDefined();
+      expect(result.files['src/index.ts'].constants.length).toBeGreaterThan(0);
+      expect(result.files['src/index.ts'].constants[0].name).toBe('updated');
+    });
+
+    it('should handle updateFile with filter options - file no longer matches', async () => {
+      mockFiles = {
+        'src/index.ts': 'export const test = true;',
+        'src/utils.ts': 'export function helper() { return 42; }'
+      };
+
+      // Create indexer with include pattern that only matches index.ts
+      const filterOptions = { include: ['src/index.ts'] };
+      const indexer = new CodeIndexer('/test/project', filterOptions);
+      
+      // Start with an existing index that has both files (created without filter)
+      const existingIndex = await new CodeIndexer('/test/project', {}).processProject();
+      
+      // Verify we start with 2 files
+      expect(existingIndex.metadata.totalFiles).toBe(2);
+      expect(existingIndex.files['src/utils.ts']).toBeDefined();
+
+      // Try to update utils.ts with the restrictive filter
+      const result = await indexer.updateFile('src/utils.ts', existingIndex);
+
+      // File should be removed from index since it doesn't match current filter
+      expect(result.files['src/utils.ts']).toBeUndefined();
+      expect(result.nodes).not.toContain('src/utils.ts');
+      expect(result.metadata.totalFiles).toBe(1); // Should be 1 after removing utils.ts
+    });
+
+    it('should verify wouldFileBeIncluded helper method works correctly', async () => {
+      // Test simpler patterns first
+      const filterOptions = {
+        include: ['src/*.ts', 'src/**/*.ts'],
+        exclude: ['**/*.test.ts']
+      };
+
+      const indexer = new CodeIndexer('/test/project', filterOptions);
+      
+      // Access private method via type assertion for testing
+      const wouldFileBeIncluded = (indexer as CodeIndexerWithPrivateMethods).wouldFileBeIncluded.bind(indexer);
+
+      // Should include files matching include pattern
+      expect(wouldFileBeIncluded('src/index.ts')).toBe(true);
+      expect(wouldFileBeIncluded('src/utils/helper.ts')).toBe(true);
+
+      // Should exclude files matching exclude pattern
+      expect(wouldFileBeIncluded('src/index.test.ts')).toBe(false);
+      expect(wouldFileBeIncluded('test/utils.test.ts')).toBe(false);
+
+      // Should exclude files not matching include pattern
+      expect(wouldFileBeIncluded('lib/external.ts')).toBe(false);
+    });
+
+    it('should handle empty filter options (include all files)', async () => {
+      const indexer = new CodeIndexer('/test/project', {});
+      const wouldFileBeIncluded = (indexer as CodeIndexerWithPrivateMethods).wouldFileBeIncluded.bind(indexer);
+
+      // Should include any file when no filters are specified
+      expect(wouldFileBeIncluded('src/index.ts')).toBe(true);
+      expect(wouldFileBeIncluded('test/utils.test.ts')).toBe(true);
+      expect(wouldFileBeIncluded('lib/external.ts')).toBe(true);
     });
   });
 });

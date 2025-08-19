@@ -1,12 +1,35 @@
 #!/usr/bin/env node
 
+/**
+ * @fileoverview Command-line interface for codebase-map
+ * 
+ * Provides commands for scanning codebases, updating indexes, formatting output,
+ * and listing files with comprehensive pattern support for include/exclude filtering.
+ * 
+ * @example
+ * ```bash
+ * # Basic usage
+ * codebase-map scan
+ * 
+ * # With patterns
+ * codebase-map scan --include "src/**" --exclude "**\/*.test.ts"
+ * 
+ * # Format output
+ * codebase-map format --format dsl
+ * ```
+ * 
+ * @author codebase-map
+ * @version 0.3.0
+ */
+
 import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
-import { CodeIndexer, DependencyResolver } from './core/index.js';
-import type { ProjectIndex } from './types/index.js';
+import { CodeIndexer, DependencyResolver, FileDiscovery } from './core/index.js';
+import type { ProjectIndex, FilterOptions } from './types/index.js';
 import { findProjectRoot, findIndexFile } from './utils/find-project-root.js';
 import { DEFAULT_INDEX_FILENAME } from './constants.js';
+import { formatWarningsForCLI, formatSuggestionsForCLI } from './utils/pattern-analysis.js';
 import { 
   toDSL, 
   toGraph,
@@ -29,8 +52,10 @@ program
   .option('-r, --root <path>', 'root directory to scan')
   .option('-o, --output <path>', 'output file path', DEFAULT_INDEX_FILENAME)
   .option('-v, --verbose', 'show detailed progress')
+  .option('--include <patterns...>', 'include file patterns (glob syntax: src/** lib/**/*.ts)')
+  .option('--exclude <patterns...>', 'exclude file patterns (glob syntax: **/*.test.ts docs/**)')
   .action(async (options) => {
-    const { output, verbose } = options;
+    const { output, verbose, include, exclude } = options;
     
     // Find project root if not specified
     const root = options.root || findProjectRoot() || process.cwd();
@@ -40,7 +65,50 @@ program
     
     console.log('🔍 Scanning codebase...');
     
-    const indexer = new CodeIndexer(root);
+    // Build filter options from CLI arguments
+    const filterOptions: FilterOptions = {};
+    if (include && include.length > 0) {
+      filterOptions.include = include;
+    }
+    if (exclude && exclude.length > 0) {
+      filterOptions.exclude = exclude;
+    }
+    
+    // Run pattern analysis if patterns are provided and verbose mode is on
+    if (verbose && (include || exclude)) {
+      console.log('\n📋 Analyzing patterns...');
+      try {
+        const { analysis } = await FileDiscovery.discoverFilesWithAnalysis(root, filterOptions);
+        
+        // Display warnings
+        if (analysis.warnings.length > 0) {
+          console.log('\n⚠️  Pattern warnings:');
+          const formattedWarnings = formatWarningsForCLI(analysis.warnings);
+          formattedWarnings.forEach(warning => console.log(`  ${warning}`));
+        }
+        
+        // Display suggestions
+        if (analysis.suggestions.length > 0) {
+          console.log('\n💡 Suggestions:');
+          const formattedSuggestions = formatSuggestionsForCLI(analysis.suggestions);
+          formattedSuggestions.forEach(suggestion => console.log(`  ${suggestion}`));
+        }
+        
+        // Display pattern effectiveness stats
+        console.log('\n📊 Pattern effectiveness:');
+        console.log(`  Total candidate files: ${analysis.stats.totalCandidateFiles}`);
+        console.log(`  Files after include: ${analysis.stats.includedFiles}`);
+        console.log(`  Files after exclude: ${analysis.stats.finalFiles}`);
+        if (analysis.stats.excludedFiles > 0) {
+          console.log(`  Files excluded: ${analysis.stats.excludedFiles}`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Pattern analysis failed: ${error}`);
+      }
+    }
+    
+    const indexer = new CodeIndexer(root, filterOptions);
     const startTime = Date.now();
     
     let stepsCompleted = 0;

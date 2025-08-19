@@ -2,6 +2,19 @@
  * Common type definitions
  */
 
+/**
+ * Pattern filtering options for file inclusion/exclusion
+ */
+export interface FilterOptions {
+  include?: string[];
+  exclude?: string[];
+}
+
+/**
+ * Enhanced constructor signature for future use
+ */
+export type CodeIndexerOptions = FilterOptions;
+
 export interface CodeMapConfig {
   rootPath: string;
   outputPath: string;
