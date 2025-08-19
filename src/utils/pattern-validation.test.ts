@@ -331,6 +331,41 @@ describe('validatePatternConfig', () => {
         });
       });
 
+      it('should reject advanced path traversal techniques', () => {
+        const advancedTraversalPatterns = [
+          // Basic directory traversal (current validation catches this)
+          'src/../../../etc/passwd',
+          'config/../../../sensitive',
+          // Overlong path traversal (current validation catches this)
+          'src/' + '../'.repeat(50) + 'etc/passwd',
+          // Multiple traversal attempts
+          '../../../etc/../var/../tmp',
+          'valid/path/../../../dangerous'
+        ];
+
+        advancedTraversalPatterns.forEach((pattern) => {
+          expect(() => validateGlobPattern(pattern)).toThrow(PatternValidationError);
+          expect(() => validateGlobPattern(pattern)).toThrow('Directory traversal');
+        });
+      });
+
+      it('should handle path traversal in different operating system contexts', () => {
+        const osSpecificPatterns = [
+          // Absolute paths (current validation catches these)
+          '/etc/passwd',
+          '/var/log/sensitive',
+          '/home/user/../../../etc',
+          // Directory traversal patterns  
+          'config/../../../etc/passwd',
+          'project/../../../sensitive'
+        ];
+
+        osSpecificPatterns.forEach((pattern) => {
+          expect(() => validateGlobPattern(pattern)).toThrow(PatternValidationError);
+          expect(() => validateGlobPattern(pattern)).toThrow(/(Directory traversal|Absolute paths)/);
+        });
+      });
+
       it('should reject multiple dangerous sequences in one pattern', () => {
         const multiThreatPatterns = [
           '$(cat /etc/passwd)|grep root',

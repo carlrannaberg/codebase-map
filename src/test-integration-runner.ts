@@ -10,6 +10,28 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/**
+ * Reads the version from package.json
+ * @returns The version string from package.json or a fallback
+ */
+function getVersion(): string {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const packageJsonPath = path.resolve(__dirname, '..', 'package.json');
+    
+    if (fs.existsSync(packageJsonPath)) {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      return packageJson.version || '0.4.0';
+    }
+    
+    return '0.4.0';
+  } catch {
+    return '0.4.0';
+  }
+}
 
 interface TestSuite {
   name: string;
@@ -133,7 +155,7 @@ async function generateReport(results: TestResult[]): Promise<void> {
   const report = `# Integration Test Report
 
 **Generated:** ${new Date().toISOString()}  
-**Project:** codebase-map v0.3.0  
+**Project:** codebase-map v${getVersion()}  
 **Test Suite:** Include/Exclude Patterns Integration Tests  
 
 ## Summary

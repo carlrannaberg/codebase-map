@@ -1072,4 +1072,220 @@ describe('FileDiscovery', () => {
       ]);
     });
   });
+
+  describe('symlink handling', () => {
+    it('should handle symlinks correctly', async () => {
+      const mockFiles = [
+        'src/index.ts',
+        'src/symlink.ts', // This could be a symlink
+        'lib/linked-file.js'
+      ];
+      
+      mockFastGlob.mockResolvedValue(mockFiles);
+      mockIgnoreInstance.ignores.mockReturnValue(false);
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const result = await FileDiscovery.discoverFiles('/test/project');
+      
+      // Should include symlinked files by default (fast-glob follows symlinks)
+      expect(result).toEqual([
+        'lib/linked-file.js',
+        'src/index.ts',
+        'src/symlink.ts'
+      ]);
+    });
+
+    it('should handle broken symlinks gracefully', async () => {
+      // fast-glob typically skips broken symlinks, so they wouldn't appear in results
+      const mockFiles = [
+        'src/index.ts',
+        'src/working-file.js'
+        // broken symlinks would be filtered out by fast-glob
+      ];
+      
+      mockFastGlob.mockResolvedValue(mockFiles);
+      mockIgnoreInstance.ignores.mockReturnValue(false);
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const result = await FileDiscovery.discoverFiles('/test/project');
+      
+      expect(result).toEqual([
+        'src/index.ts',
+        'src/working-file.js'
+      ]);
+    });
+
+    it('should handle circular symlinks without infinite loops', async () => {
+      // fast-glob has built-in protection against circular symlinks
+      const mockFiles = [
+        'src/index.ts',
+        'src/utils.js'
+      ];
+      
+      mockFastGlob.mockResolvedValue(mockFiles);
+      mockIgnoreInstance.ignores.mockReturnValue(false);
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const result = await FileDiscovery.discoverFiles('/test/project-with-circular');
+      
+      expect(result).toEqual([
+        'src/index.ts',
+        'src/utils.js'
+      ]);
+    });
+  });
+
+  describe('critical failure path testing', () => {
+    describe('filesystem-level failures', () => {
+      it('should handle ENOENT errors during directory scanning', async () => {
+        mockFastGlob.mockRejectedValue(new Error('ENOENT: no such file or directory, scandir'));
+        
+        await expect(FileDiscovery.discoverFiles('/nonexistent/path')).rejects.toThrow('ENOENT');
+      });
+
+      it('should handle EACCES permission denied errors', async () => {
+        mockFastGlob.mockRejectedValue(new Error('EACCES: permission denied, scandir'));
+        
+        await expect(FileDiscovery.discoverFiles('/restricted/path')).rejects.toThrow('EACCES');
+      });
+
+      it('should handle EMFILE too many open files', async () => {
+        mockFastGlob.mockRejectedValue(new Error('EMFILE: too many open files, scandir'));
+        
+        await expect(FileDiscovery.discoverFiles('/test/path')).rejects.toThrow('EMFILE');
+      });
+
+      it('should handle EIO input/output errors', async () => {
+        mockFastGlob.mockRejectedValue(new Error('EIO: i/o error, scandir'));
+        
+        await expect(FileDiscovery.discoverFiles('/corrupted/path')).rejects.toThrow('EIO');
+      });
+
+      it('should handle ENOSPC no space left on device', async () => {
+        mockFastGlob.mockRejectedValue(new Error('ENOSPC: no space left on device'));
+        
+        await expect(FileDiscovery.discoverFiles('/test/path')).rejects.toThrow('ENOSPC');
+      });
+    });
+
+    describe('gitignore processing failures', () => {
+      it('should handle corrupted .gitignore files', async () => {
+        const files = ['src/app.ts'];
+        
+        mockFastGlob.mockResolvedValue(files);
+        mockFs.existsSync.mockReturnValue(true);
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('EACCES: permission denied, open \'.gitignore\''));
+        mockIgnoreInstance.ignores.mockReturnValue(false);
+        
+        // Should continue despite .gitignore read error
+        const result = await FileDiscovery.discoverFiles('/test/project');
+        
+        expect(result).toEqual(['src/app.ts']);
+      });
+
+      it('should handle extremely large .gitignore files', async () => {
+        const files = ['src/app.ts'];
+        const largeGitignore = Array.from({ length: 10000 }, (_, i) => `pattern${i}/`).join('\n');
+        
+        mockFastGlob.mockResolvedValue(files);
+        mockFs.existsSync.mockReturnValue(true);
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(largeGitignore);
+        mockIgnoreInstance.ignores.mockReturnValue(false);
+        
+        const result = await FileDiscovery.discoverFiles('/test/project');
+        
+        expect(result).toEqual(['src/app.ts']);
+        expect(mockIgnoreInstance.add).toHaveBeenCalledWith(largeGitignore);
+      });
+
+      it('should handle binary .gitignore files', async () => {
+        const files = ['src/app.ts'];
+        const binaryContent = Buffer.from([0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE, 0xFD]).toString('utf8');
+        
+        mockFastGlob.mockResolvedValue(files);
+        mockFs.existsSync.mockReturnValue(true);
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(binaryContent);
+        mockIgnoreInstance.ignores.mockReturnValue(false);
+        
+        const result = await FileDiscovery.discoverFiles('/test/project');
+        
+        expect(result).toEqual(['src/app.ts']);
+      });
+    });
+
+    describe('pattern processing cascading failures', () => {
+      it('should handle malformed glob patterns gracefully', async () => {
+        mockFastGlob.mockRejectedValue(new Error('Invalid glob pattern: unclosed bracket'));
+        
+        await expect(FileDiscovery.discoverFiles('/test/project', {
+          include: ['src/**[invalid']
+        })).rejects.toThrow('Invalid glob pattern');
+      });
+
+      it('should handle regex catastrophic backtracking in patterns', async () => {
+        // Simulate a pattern that could cause catastrophic backtracking
+        const complexPattern = 'src/**/*'.repeat(50) + '.ts';
+        
+        mockFastGlob.mockImplementation(() => {
+          // Simulate timeout due to complex pattern
+          return new Promise((_, reject) => {
+            globalThis.setTimeout(() => reject(new Error('Pattern matching timeout')), 100);
+          });
+        });
+        
+        // Pattern validation will reject this pattern before it reaches fast-glob
+        // because it has too many recursive wildcards
+        await expect(FileDiscovery.discoverFiles('/test/project', {
+          include: [complexPattern]
+        })).rejects.toThrow(/Too many recursive wildcards/);
+      });
+
+      it('should handle memory exhaustion during large file list processing', async () => {
+        // Simulate memory exhaustion during file list generation
+        mockFastGlob.mockImplementation(() => {
+          throw new Error('JavaScript heap out of memory');
+        });
+        
+        await expect(FileDiscovery.discoverFiles('/test/huge-project')).rejects.toThrow('JavaScript heap out of memory');
+      });
+    });
+
+    describe('concurrent access failures', () => {
+      it('should handle concurrent modifications during scanning', async () => {
+        // First call succeeds, subsequent calls would fail
+        // but since FileDiscovery only calls fast-glob once, this test needs adjustment
+        mockFastGlob.mockResolvedValue(['src/app.ts', 'src/utils.ts']);
+        mockIgnoreInstance.ignores.mockReturnValue(false);
+        
+        // File discovery succeeds even if filesystem changes during scan
+        // because fast-glob captures the state at the moment of scan
+        const result = await FileDiscovery.discoverFiles('/test/changing-project');
+        expect(result).toEqual(['src/app.ts', 'src/utils.ts']);
+      });
+
+      it('should handle directory removal during traversal', async () => {
+        mockFastGlob.mockRejectedValue(new Error('ENOTDIR: not a directory, scandir'));
+        
+        await expect(FileDiscovery.discoverFiles('/test/removed-dir')).rejects.toThrow('ENOTDIR');
+      });
+    });
+
+    describe('resource exhaustion recovery', () => {
+      it('should handle file descriptor exhaustion', async () => {
+        mockFastGlob.mockRejectedValue(new Error('ENFILE: file table overflow'));
+        
+        await expect(FileDiscovery.discoverFiles('/test/project')).rejects.toThrow('ENFILE');
+      });
+
+      it('should handle network timeout on network filesystems', async () => {
+        mockFastGlob.mockImplementation(() => {
+          return new Promise((_, reject) => {
+            globalThis.setTimeout(() => reject(new Error('ETIMEDOUT: connection timed out')), 100);
+          });
+        });
+        
+        await expect(FileDiscovery.discoverFiles('/network/mount/project')).rejects.toThrow('ETIMEDOUT');
+      });
+    });
+  });
 });

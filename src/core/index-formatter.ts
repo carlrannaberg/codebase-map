@@ -1,13 +1,78 @@
 /**
- * Ultra-compact formatters for Claude context optimization
+ * Ultra-compact formatters for optimizing project indexes for AI context usage.
+ * 
+ * This module provides multiple output formats for project indexes, each optimized
+ * for different use cases. The formats prioritize token efficiency while maintaining
+ * readability and essential information.
+ * 
+ * ## Available Formats
+ * 
+ * - **DSL**: Custom domain-specific language (90% token reduction)
+ * - **Graph**: Dependency graph with signatures (92% token reduction)
+ * - **Markdown**: Human-readable documentation format (93% token reduction)
+ * - **Auto**: Automatically selects the best format based on project size
+ * 
+ * ## Token Efficiency
+ * 
+ * All formats are designed to fit within AI context windows efficiently:
+ * - 1000 files ≈ 21K tokens (DSL format)
+ * - 2000 files ≈ 42K tokens (recommended maximum)
+ * - 5000+ files automatically uses Graph format
+ * 
+ * @example Basic formatting
+ * ```typescript
+ * import { toDSL, toMarkdown } from 'code-map';
+ * 
+ * const index = await indexer.processProject();
+ * 
+ * // Ultra-compact for AI context
+ * const dslOutput = toDSL(index);
+ * 
+ * // Human-readable documentation
+ * const markdownOutput = toMarkdown(index);
+ * ```
+ * 
+ * @example Auto-format selection
+ * ```typescript
+ * import { formatAuto } from 'code-map';
+ * 
+ * const { format, content } = formatAuto(index);
+ * console.log(`Selected ${format} format for ${index.metadata.totalFiles} files`);
+ * ```
+ * 
+ * @module Formatters
  */
 
 import type { ProjectIndex } from '../types/index.js';
 
+/**
+ * Supported output format types for project indexes.
+ * 
+ * Each format optimizes for different use cases:
+ * - `json`: Raw structured data
+ * - `dsl`: Ultra-compact custom syntax
+ * - `graph`: Dependency-focused representation
+ * - `markdown`: Human-readable documentation
+ */
 export type FormatType = 'json' | 'dsl' | 'graph' | 'markdown';
 
 /**
- * Helper to shorten file paths by removing common prefixes and extensions
+ * Helper function to shorten file paths for more compact output.
+ * 
+ * Removes common prefixes and file extensions to reduce token usage
+ * while maintaining path readability.
+ * 
+ * @param path - File path to shorten
+ * @param removePrefix - Whether to remove 'src/' prefix
+ * @returns Shortened path without extension
+ * 
+ * @example
+ * ```typescript
+ * shortenPath('src/components/Button.tsx'); // 'components/Button'
+ * shortenPath('src/utils/helpers.ts', false); // 'src/utils/helpers'
+ * ```
+ * 
+ * @internal
  */
 function shortenPath(path: string, removePrefix = true): string {
   let result = path;
@@ -18,8 +83,35 @@ function shortenPath(path: string, removePrefix = true): string {
 }
 
 /**
- * Format 1: Custom DSL (90% token reduction vs compact JSON)
- * Human-readable, ultra-compact format
+ * Convert project index to ultra-compact DSL (Domain Specific Language) format.
+ * 
+ * This format provides the best balance of readability and token efficiency,
+ * achieving 90% token reduction compared to compact JSON. Perfect for AI
+ * context usage while remaining human-readable.
+ * 
+ * ## Format Structure
+ * ```
+ * # Legend: fn=function cl=class cn=constant m=methods p=properties
+ * 
+ * filepath > dependency1,dependency2
+ *   fn functionName(param:type):returnType async
+ *   cl ClassName(2m,3p) extends BaseClass
+ *   cn CONSTANT_NAME:string
+ * ```
+ * 
+ * @param index - Project index to format
+ * @returns DSL-formatted string representation
+ * 
+ * @example
+ * ```typescript
+ * const index = await indexer.processProject();
+ * const dslOutput = toDSL(index);
+ * 
+ * console.log(dslOutput);
+ * // src/utils.ts > 
+ * //   fn processData(input:string):Promise<Result> async
+ * //   cn API_URL:string
+ * ```
  */
 export function toDSL(index: ProjectIndex): string {
   const lines: string[] = [
@@ -62,8 +154,39 @@ export function toDSL(index: ProjectIndex): string {
 }
 
 /**
- * Format 2: Graph + Signatures (92% token reduction vs compact JSON)
- * Readable compression with shortened paths for large projects
+ * Convert project index to dependency graph format with code signatures.
+ * 
+ * This format emphasizes dependency relationships and provides 92% token
+ * reduction. Ideal for large projects where dependency analysis is the
+ * primary concern.
+ * 
+ * ## Format Structure
+ * ```
+ * DEPS:
+ * fileA→fileB
+ * fileB→fileC
+ * 
+ * SIGS:
+ * fileA: fn:functionName cl:ClassName(2m,1p) cn:CONSTANT
+ * ```
+ * 
+ * @param index - Project index to format
+ * @returns Graph-formatted string representation
+ * 
+ * @example
+ * ```typescript
+ * const index = await indexer.processProject();
+ * const graphOutput = toGraph(index);
+ * 
+ * console.log(graphOutput);
+ * // DEPS:
+ * // utils→types
+ * // components/Button→utils
+ * //
+ * // SIGS:
+ * // utils: fn:processData,fn:validateInput cn:CONFIG
+ * // components/Button: cl:Button(3m,2p)
+ * ```
  */
 export function toGraph(index: ProjectIndex): string {
   
@@ -118,8 +241,36 @@ export function toGraph(index: ProjectIndex): string {
 }
 
 /**
- * Format 3: Markdown with arrows (93% token reduction vs compact JSON)
- * Clean, readable markdown format with arrow dependencies
+ * Convert project index to human-readable Markdown documentation format.
+ * 
+ * This format provides the highest readability with 93% token reduction.
+ * Perfect for generating project documentation, README files, or reports
+ * that need to be easily understood by developers.
+ * 
+ * ## Format Structure
+ * - Organized by directory
+ * - Clear dependency listings
+ * - Detailed function and class information
+ * - Project statistics summary
+ * 
+ * @param index - Project index to format
+ * @returns Markdown-formatted string representation
+ * 
+ * @example
+ * ```typescript
+ * const index = await indexer.processProject();
+ * const markdownOutput = toMarkdown(index);
+ * 
+ * console.log(markdownOutput);
+ * // # Project Structure
+ * //
+ * // ## src/
+ * //
+ * // ### utils.ts
+ * // **Dependencies:** ./types
+ * // **Functions:** processData(), validateInput()
+ * // **Constants:** API_URL, DEFAULT_CONFIG
+ * ```
  */
 export function toMarkdown(index: ProjectIndex): string {
   const lines: string[] = ['# Project Structure\n'];
@@ -187,20 +338,43 @@ export function toMarkdown(index: ProjectIndex): string {
 }
 
 /**
- * Auto-select best format based on project size and context usage
+ * Automatically select the optimal format based on project size and token efficiency.
  * 
- * Philosophy: Use DSL format for as long as possible since it's readable.
- * Switch to graph format before the index gets too heavy (>20% of context).
+ * This function intelligently chooses between available formats to maximize
+ * readability while staying within practical token limits for AI context usage.
  * 
- * At ~21 tokens per file in DSL:
- * - 1000 files = 21K tokens (10% of context) ✅ Use DSL
- * - 2000 files = 42K tokens (21% of context) ⚠️ Good cutoff point
- * - 3000 files = 63K tokens (31% of context) ❌ Too heavy
+ * ## Selection Logic
  * 
- * 2000 files is the sweet spot:
- * - Covers most production codebases
- * - Keeps context usage reasonable (≤20%)
- * - Leaves 80% of context for actual work
+ * - **≤5000 files**: DSL format (best readability, 90% compression)
+ * - **>5000 files**: Graph format (maximum compression, 92% reduction)
+ * 
+ * ## Token Budget Philosophy
+ * 
+ * Uses DSL format as long as possible since it's more readable, only switching
+ * to graph format for very large projects where every token counts.
+ * 
+ * **Token estimates (DSL format):**
+ * - 1000 files ≈ 21K tokens (10% of 200K context) ✓
+ * - 2000 files ≈ 42K tokens (21% of context) ⚠️
+ * - 5000 files ≈ 105K tokens (53% of context) - switches to Graph
+ * 
+ * @param index - Project index to format
+ * @returns Object containing the selected format type and formatted content
+ * 
+ * @example
+ * ```typescript
+ * const index = await indexer.processProject();
+ * const { format, content } = formatAuto(index);
+ * 
+ * console.log(`Auto-selected ${format} format`);
+ * console.log(`Content length: ${content.length} characters`);
+ * 
+ * if (format === 'dsl') {
+ *   console.log('Using readable DSL format');
+ * } else {
+ *   console.log('Using compact graph format for large project');
+ * }
+ * ```
  */
 export function formatAuto(index: ProjectIndex): { format: FormatType; content: string } {
   const fileCount = index.metadata.totalFiles;
@@ -218,12 +392,42 @@ export function formatAuto(index: ProjectIndex): { format: FormatType; content: 
 }
 
 /**
- * Get compression stats for a format
+ * Calculate compression statistics for a formatted output.
+ * 
+ * Provides detailed metrics about token and size reduction compared to
+ * compact JSON baseline. Useful for analyzing format efficiency and
+ * making informed decisions about context usage.
+ * 
+ * @param original - Original project index
+ * @param formatted - Formatted string output
+ * @returns Compression statistics object
+ * 
+ * @example
+ * ```typescript
+ * const index = await indexer.processProject();
+ * const dslOutput = toDSL(index);
+ * const stats = getCompressionStats(index, dslOutput);
+ * 
+ * console.log(`Original size: ${stats.originalSize} characters`);
+ * console.log(`Compressed size: ${stats.compressedSize} characters`);
+ * console.log(`Token reduction: ${stats.reduction}%`);
+ * console.log(`Estimated tokens: ${stats.estimatedTokens}`);
+ * 
+ * // Example output:
+ * // Original size: 245680 characters
+ * // Compressed size: 24568 characters
+ * // Token reduction: 90%
+ * // Estimated tokens: 7019
+ * ```
  */
 export function getCompressionStats(original: ProjectIndex, formatted: string): {
+  /** Size of compact JSON representation in characters */
   originalSize: number;
+  /** Size of formatted output in characters */
   compressedSize: number;
+  /** Token reduction percentage (0-100) */
   reduction: number;
+  /** Estimated token count for formatted output */
   estimatedTokens: number;
 } {
   // Use compact JSON as baseline (no whitespace) - this is what actually gets sent to LLMs

@@ -407,6 +407,41 @@ describe('DependencyResolver', () => {
       expect(counts.dependents.size).toBe(999);
     });
 
+    it('should demonstrate O(n) performance improvement for buildDependencyGraph', () => {
+      // Create a realistic scenario with many files importing from a common module
+      const commonFile = 'src/utils/common.ts';
+      const files: Record<string, ImportInfo[]> = {
+        [commonFile]: [] // Common utility file with no imports
+      };
+      const allFiles = [commonFile];
+      
+      // Generate 5000 files that all import from common.ts
+      for (let i = 0; i < 5000; i++) {
+        const fileName = `src/feature${Math.floor(i / 100)}/module${i}.ts`;
+        files[fileName] = [
+          { from: '../utils/common.js', kind: 'import' }
+        ];
+        allFiles.push(fileName);
+      }
+
+      const startTime = Date.now();
+      
+      const result = DependencyResolver.buildDependencyGraph(files, allFiles);
+      
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // With O(n²) algorithm, this would take several seconds
+      // With O(n) algorithm, it should complete in much less time
+      expect(duration).toBeLessThan(500); // 500ms threshold
+      
+      // Verify correct result: 5000 files importing common.ts
+      expect(result).toHaveLength(5000);
+      expect(result.every(edge => edge.to === commonFile)).toBe(true);
+      
+      console.log(`buildDependencyGraph processed ${allFiles.length} files in ${duration}ms`);
+    });
+
     it('should handle empty input gracefully', () => {
       const result = DependencyResolver.resolveImports([], 'any/path.ts', []);
       expect(result).toEqual([]);
@@ -421,6 +456,173 @@ describe('DependencyResolver', () => {
       
       // Should still process without throwing
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('monorepo workspace dependency resolution', () => {
+    it('should resolve cross-package dependencies in monorepos', () => {
+      const imports: ImportInfo[] = [
+        { from: '@workspace/shared', kind: 'import' },
+        { from: '@workspace/utils', kind: 'import' },
+        { from: './local-file', kind: 'import' }
+      ];
+
+      const allFiles = [
+        'packages/app/src/index.ts',
+        'packages/app/src/local-file.ts',
+        'packages/shared/src/index.ts',
+        'packages/utils/src/index.ts'
+      ];
+
+      const result = DependencyResolver.resolveImports(imports, 'packages/app/src/index.ts', allFiles);
+
+      // Current implementation only resolves relative imports
+      // Workspace imports would need special handling
+      expect(result).toEqual(['packages/app/src/local-file.ts']);
+    });
+
+    it('should handle lerna-style monorepo structure', () => {
+      const files = {
+        'packages/core/src/index.ts': [
+          { from: '../../../shared/src/types', kind: 'import' }
+        ],
+        'packages/ui/src/button.ts': [
+          { from: '../../core/src/index', kind: 'import' },
+          { from: '../../../shared/src/theme', kind: 'import' }
+        ],
+        'shared/src/types.ts': [],
+        'shared/src/theme.ts': []
+      };
+
+      const allFiles = [
+        'packages/core/src/index.ts',
+        'packages/ui/src/button.ts',
+        'shared/src/types.ts',
+        'shared/src/theme.ts'
+      ];
+
+      const result = DependencyResolver.buildDependencyGraph(files, allFiles);
+
+      // Should resolve cross-package relative imports
+      expect(result).toContainEqual({ 
+        from: 'packages/core/src/index.ts', 
+        to: 'shared/src/types.ts' 
+      });
+      expect(result).toContainEqual({ 
+        from: 'packages/ui/src/button.ts', 
+        to: 'packages/core/src/index.ts' 
+      });
+      expect(result).toContainEqual({ 
+        from: 'packages/ui/src/button.ts', 
+        to: 'shared/src/theme.ts' 
+      });
+    });
+
+    it('should handle yarn workspaces with hoisted dependencies', () => {
+      const files = {
+        'apps/web/src/app.tsx': [
+          { from: '@repo/ui', kind: 'import' }, // Workspace dependency
+          { from: 'react', kind: 'import' }, // External dependency
+          { from: './components/header', kind: 'import' } // Local dependency
+        ],
+        'apps/web/src/components/header.tsx': [
+          { from: '@repo/ui/button', kind: 'import' }
+        ],
+        'packages/ui/src/index.ts': [],
+        'packages/ui/src/button.tsx': []
+      };
+
+      const allFiles = [
+        'apps/web/src/app.tsx',
+        'apps/web/src/components/header.tsx',
+        'packages/ui/src/index.ts',
+        'packages/ui/src/button.tsx'
+      ];
+
+      const result = DependencyResolver.buildDependencyGraph(files, allFiles);
+
+      // Should only resolve local relative imports with current implementation
+      expect(result).toContainEqual({ 
+        from: 'apps/web/src/app.tsx', 
+        to: 'apps/web/src/components/header.tsx' 
+      });
+      
+      // Workspace imports (@repo/ui) are currently ignored as they're not relative
+      expect(result.some(edge => edge.to.includes('packages/ui'))).toBe(false);
+    });
+
+    it('should handle nx-style monorepo with path mapping', () => {
+      const files = {
+        'libs/feature-a/src/index.ts': [
+          { from: '@myorg/shared-utils', kind: 'import' },
+          { from: './lib/component', kind: 'import' }
+        ],
+        'libs/feature-a/src/lib/component.ts': [
+          { from: '@myorg/ui-components', kind: 'import' }
+        ],
+        'libs/shared-utils/src/index.ts': [],
+        'libs/ui-components/src/index.ts': []
+      };
+
+      const allFiles = [
+        'libs/feature-a/src/index.ts',
+        'libs/feature-a/src/lib/component.ts',
+        'libs/shared-utils/src/index.ts',
+        'libs/ui-components/src/index.ts'
+      ];
+
+      const result = DependencyResolver.buildDependencyGraph(files, allFiles);
+
+      // Should resolve local relative imports
+      expect(result).toContainEqual({ 
+        from: 'libs/feature-a/src/index.ts', 
+        to: 'libs/feature-a/src/lib/component.ts' 
+      });
+      
+      // Path-mapped imports would require tsconfig.json parsing to resolve
+      expect(result.length).toBe(1);
+    });
+
+    it('should detect circular dependencies across packages', () => {
+      const edges = [
+        { from: 'packages/a/src/index.ts', to: 'packages/b/src/index.ts' },
+        { from: 'packages/b/src/index.ts', to: 'packages/c/src/index.ts' },
+        { from: 'packages/c/src/index.ts', to: 'packages/a/src/index.ts' }
+      ];
+
+      const result = DependencyResolver.findCircularDependencies(edges);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual([
+        'packages/a/src/index.ts',
+        'packages/b/src/index.ts',
+        'packages/c/src/index.ts',
+        'packages/a/src/index.ts'
+      ]);
+    });
+
+    it('should identify cross-package entry points and leaves', () => {
+      const edges = [
+        { from: 'apps/web/src/main.ts', to: 'packages/core/src/index.ts' },
+        { from: 'apps/api/src/main.ts', to: 'packages/core/src/index.ts' },
+        { from: 'packages/core/src/index.ts', to: 'packages/utils/src/index.ts' }
+      ];
+
+      const allFiles = [
+        'apps/web/src/main.ts',
+        'apps/api/src/main.ts',
+        'packages/core/src/index.ts',
+        'packages/utils/src/index.ts'
+      ];
+
+      const entryPoints = DependencyResolver.findEntryPoints(edges, allFiles);
+      const leafFiles = DependencyResolver.findLeafFiles(edges, allFiles);
+
+      // Entry points (no dependencies)
+      expect(entryPoints).toEqual(['packages/utils/src/index.ts']);
+      
+      // Leaf files (not imported by others)
+      expect(leafFiles).toEqual(['apps/web/src/main.ts', 'apps/api/src/main.ts']);
     });
   });
 });

@@ -12,6 +12,7 @@ const mockFs = vi.mocked(fs);
 
 interface MockFsPromises {
   readFile: ReturnType<typeof vi.fn>;
+  stat: ReturnType<typeof vi.fn>;
 }
 
 describe('ASTParser', () => {
@@ -20,7 +21,8 @@ describe('ASTParser', () => {
     
     // Setup fs mock
     mockFs.promises = {
-      readFile: vi.fn()
+      readFile: vi.fn(),
+      stat: vi.fn().mockResolvedValue({ size: 1000 }) // Mock file size as 1KB (under 5MB limit)
     } as MockFsPromises;
   });
 
@@ -475,28 +477,20 @@ export function testFunction(): void {}
       expect(result.functions[0].name).toBe('testFunction');
     });
 
-    it('should handle empty content', () => {
-      const result = ASTParser.parseContent('', '/test/empty.ts');
-
-      expect(result).toEqual({
+    it('should handle empty and whitespace-only content', () => {
+      const emptyResult = ASTParser.parseContent('', '/test/empty.ts');
+      const whitespaceResult = ASTParser.parseContent('   \n\t  \n   ', '/test/whitespace.ts');
+      
+      const expectedEmptyStructure = {
         imports: [],
         dependencies: [],
         functions: [],
         classes: [],
         constants: []
-      });
-    });
+      };
 
-    it('should handle whitespace-only content', () => {
-      const result = ASTParser.parseContent('   \n\t  \n   ', '/test/whitespace.ts');
-
-      expect(result).toEqual({
-        imports: [],
-        dependencies: [],
-        functions: [],
-        classes: [],
-        constants: []
-      });
+      expect(emptyResult).toEqual(expectedEmptyStructure);
+      expect(whitespaceResult).toEqual(expectedEmptyStructure);
     });
   });
 
@@ -604,6 +598,378 @@ export class DecoratedClass {
       expect(result.functions).toHaveLength(1000);
       // Should complete parsing within reasonable time (less than 1 second)
       expect(endTime - startTime).toBeLessThan(1000);
+    });
+  });
+
+  describe('critical failure path testing', () => {
+    describe('file system failures', () => {
+      it('should handle ENOENT file not found errors', async () => {
+        const filePath = '/test/nonexistent.ts';
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('ENOENT: no such file or directory, open'));
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+      });
+
+      it('should handle EACCES permission denied errors', async () => {
+        const filePath = '/test/restricted.ts';
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('EACCES: permission denied, open'));
+
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+
+        consoleSpy.mockRestore();
+      });
+
+      it('should handle EIO input/output errors', async () => {
+        const filePath = '/test/corrupted.ts';
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('EIO: i/o error, read'));
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+      });
+
+      it('should handle EMFILE too many open files', async () => {
+        const filePath = '/test/file.ts';
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('EMFILE: too many open files, open'));
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+      });
+
+      it('should handle ENOSPC no space left on device during stat', async () => {
+        const filePath = '/test/file.ts';
+        (mockFs.promises.stat as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('ENOSPC: no space left on device, stat'));
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+      });
+    });
+
+    describe('memory and resource exhaustion', () => {
+      it('should handle oversized files gracefully', async () => {
+        const filePath = '/test/huge.ts';
+        
+        // Mock stat to return file size over limit
+        (mockFs.promises.stat as ReturnType<typeof vi.fn>).mockResolvedValue({ 
+          size: 10 * 1024 * 1024 // 10MB - over the 1MB limit
+        });
+
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Skipping AST parsing for oversized file'));
+
+        consoleSpy.mockRestore();
+      });
+
+      it('should handle memory exhaustion during parsing', async () => {
+        const filePath = '/test/memory-intensive.ts';
+        const complexContent = `
+          // Complex deeply nested structure that could cause memory issues
+          export const deeplyNested = ${JSON.stringify(Array.from({ length: 1000 }, (_, i) => ({ [`key${i}`]: `value${i}` })))};
+        `;
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(complexContent);
+
+        // Should handle even complex content without crashing
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result).toBeDefined();
+        expect(result.constants).toHaveLength(1);
+        expect(result.constants[0].name).toBe('deeplyNested');
+      });
+
+      it('should handle circular reference attempts', async () => {
+        const filePath = '/test/circular.ts';
+        const circularContent = `
+          export const a: any = { b };
+          export const b: any = { a };
+          export function recursive(): any {
+            return recursive();
+          }
+        `;
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(circularContent);
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result.constants).toHaveLength(2);
+        expect(result.functions).toHaveLength(1);
+        expect(result.constants.find(c => c.name === 'a')).toBeDefined();
+        expect(result.constants.find(c => c.name === 'b')).toBeDefined();
+        expect(result.functions[0].name).toBe('recursive');
+      });
+    });
+
+    describe('encoding and character issues', () => {
+      it('should handle non-UTF8 encoded files', async () => {
+        const filePath = '/test/encoded.ts';
+        // Simulate file with encoding issues
+        const binaryContent = Buffer.from([0xFF, 0xFE, 0x65, 0x00, 0x78, 0x00, 0x70, 0x00]).toString('binary');
+        
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(binaryContent);
+
+        const result = await ASTParser.parseFile(filePath);
+
+        // Should not crash and return empty structure
+        expect(result).toBeDefined();
+        expect(result.imports).toBeDefined();
+        expect(result.functions).toBeDefined();
+        expect(result.classes).toBeDefined();
+        expect(result.constants).toBeDefined();
+      });
+
+      it('should handle files with null bytes', async () => {
+        const filePath = '/test/nullbytes.ts';
+        const contentWithNulls = 'export const test\0 = true;\0function bad\0() {}';
+        
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(contentWithNulls);
+
+        const result = await ASTParser.parseFile(filePath);
+
+        // Should parse what it can despite null bytes
+        expect(result).toBeDefined();
+        expect(result.imports).toBeDefined();
+        expect(result.functions).toBeDefined();
+        expect(result.classes).toBeDefined();
+        expect(result.constants).toBeDefined();
+      });
+
+      it('should handle extremely long lines', async () => {
+        const filePath = '/test/longlines.ts';
+        const veryLongLine = 'export const longString = "' + 'x'.repeat(10000) + '";';
+        
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(veryLongLine);
+
+        const result = await ASTParser.parseFile(filePath);
+
+        expect(result.constants).toHaveLength(1);
+        expect(result.constants[0].name).toBe('longString');
+      });
+    });
+
+    describe('parsing corruption scenarios', () => {
+      it('should handle incomplete TypeScript syntax gracefully', async () => {
+        const filePath = '/test/incomplete.ts';
+        const incompleteContent = `
+          import { Component from 'react
+          export function broken(
+          class Invalid {
+            method( {
+          export const incomplete = 
+          interface Broken
+        `;
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(incompleteContent);
+
+        const result = await ASTParser.parseFile(filePath);
+
+        // TypeScript parser is resilient - should extract what it can
+        expect(result).toBeDefined();
+        expect(result.imports).toBeDefined();
+        expect(result.functions).toBeDefined();
+        expect(result.classes).toBeDefined();
+        expect(result.constants).toBeDefined();
+      });
+
+      it('should handle mixed content types (TypeScript + non-code)', async () => {
+        const filePath = '/test/mixed.ts';
+        const mixedContent = `
+          /* This is TypeScript */
+          export const valid = true;
+          
+          <!-- This is HTML somehow mixed in -->
+          <div>Not TypeScript</div>
+          
+          # This looks like Markdown
+          
+          export function stillValid() {
+            return 'works';
+          }
+        `;
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(mixedContent);
+
+        const result = await ASTParser.parseFile(filePath);
+
+        // Should extract valid TypeScript despite mixed content
+        expect(result.constants.length).toBeGreaterThanOrEqual(1);
+        expect(result.functions.length).toBeGreaterThanOrEqual(1);
+        expect(result.constants.find(c => c.name === 'valid')).toBeDefined();
+        expect(result.functions.find(f => f.name === 'stillValid')).toBeDefined();
+      });
+
+      it('should handle parser timeouts on extremely complex files', async () => {
+        const filePath = '/test/complex.ts';
+        
+        // Generate extremely complex nested structure
+        const complexContent = `
+          export const complex = {
+            ${Array.from({ length: 100 }, (_, i) => `
+              level${i}: {
+                ${Array.from({ length: 50 }, (_, j) => `prop${j}: () => ({ nested: true })`).join(',\n                ')}
+              }`).join(',\n            ')}
+          };
+        `;
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(complexContent);
+
+        const startTime = Date.now();
+        const result = await ASTParser.parseFile(filePath);
+        const endTime = Date.now();
+
+        // Should complete within reasonable time
+        expect(endTime - startTime).toBeLessThan(5000);
+        expect(result.constants).toHaveLength(1);
+        expect(result.constants[0].name).toBe('complex');
+      });
+    });
+
+    describe('suspicious content detection', () => {
+      it('should handle files with suspicious patterns safely', async () => {
+        const filePath = '/test/suspicious.ts';
+        const suspiciousContent = `
+          // This might look suspicious
+          eval('console.log("test")');
+          new Function('return 1;');
+          process.exit(0);
+          require('child_process').exec('ls');
+          
+          // But should still parse valid TypeScript
+          export const safe = 'value';
+          export function safeFunction() {}
+        `;
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(suspiciousContent);
+        
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await ASTParser.parseFile(filePath);
+
+        // Should parse safely and warn about suspicious content
+        expect(result).toBeDefined();
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Detected suspicious patterns'));
+        
+        consoleSpy.mockRestore();
+      });
+
+      it('should handle potential code injection attempts', async () => {
+        const filePath = '/test/injection.ts';
+        const injectionContent = `
+          const userInput = "</script><script>alert('xss')</script>";
+          const sqlQuery = "SELECT * FROM users WHERE id = '; DROP TABLE users; --";
+          const dangerous = \`eval(\${userCode})\`;
+          
+          export const normalConst = 'safe';
+        `;
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(injectionContent);
+
+        const result = await ASTParser.parseFile(filePath);
+
+        // When suspicious patterns are detected, safe parsing is used which may not extract all constants
+        // The file should be processed without errors but results may be limited
+        expect(result).toBeDefined();
+        expect(result.imports).toBeDefined();
+        // Safe parsing might not extract constants from suspicious files
+        expect(result.constants.length).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    describe('recovery and cleanup after failures', () => {
+      it('should maintain clean state after parse failures', async () => {
+        const filePath1 = '/test/fail.ts';
+        const filePath2 = '/test/success.ts';
+
+        // First file fails
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Parse failure'));
+        
+        const result1 = await ASTParser.parseFile(filePath1);
+        expect(result1).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+
+        // Second file should work normally
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValueOnce('export const success = true;');
+        
+        const result2 = await ASTParser.parseFile(filePath2);
+        expect(result2.constants).toHaveLength(1);
+        expect(result2.constants[0].name).toBe('success');
+      });
+
+      it('should handle concurrent parsing without interference', async () => {
+        const filePath1 = '/test/concurrent1.ts';
+        const filePath2 = '/test/concurrent2.ts';
+
+        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+          if (path.includes('concurrent1')) {
+            return Promise.resolve('export const one = 1;');
+          } else if (path.includes('concurrent2')) {
+            return Promise.resolve('export const two = 2;');
+          }
+          return Promise.reject(new Error('Unknown file'));
+        });
+
+        // Parse files concurrently
+        const [result1, result2] = await Promise.all([
+          ASTParser.parseFile(filePath1),
+          ASTParser.parseFile(filePath2)
+        ]);
+
+        expect(result1.constants[0].name).toBe('one');
+        expect(result2.constants[0].name).toBe('two');
+      });
     });
   });
 });

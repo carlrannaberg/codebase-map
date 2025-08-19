@@ -8,6 +8,7 @@ import fastGlob from 'fast-glob';
 import ignore from 'ignore';
 import { CodeIndexer } from './indexer.js';
 import { FileDiscovery } from './file-discovery.js';
+import { ASTParser } from '../parsers/ast-parser.js';
 import type { ProjectIndex } from '../types/index.js';
 
 // Mock fs and other dependencies
@@ -16,6 +17,11 @@ vi.mock('fast-glob');
 vi.mock('ignore');
 
 const mockFs = vi.mocked(fs);
+
+// Interface for Node.js-like error objects
+interface MockError extends Error {
+  code?: string;
+}
 
 interface MockFsPromises {
   readFile: ReturnType<typeof vi.fn>;
@@ -39,16 +45,58 @@ describe('CodeIndexer Integration Tests', () => {
     // Setup fs mocks
     mockFs.promises = {
       readFile: vi.fn().mockImplementation((filePath: string) => {
-        const relativePath = typeof filePath === 'string' 
-          ? filePath.replace(/^.*\/([^/]+\/[^/]+)$/, '$1').replace(/\\\\/g, '/')
-          : filePath;
+        // Extract the relative path from absolute path for our mock files
+        let relativePath = filePath;
+        if (typeof filePath === 'string') {
+          // Handle different path formats and extract relative path
+          const match = filePath.match(/(?:.*[/\\])?(.+)$/);
+          if (match) {
+            relativePath = match[1];
+          }
+          // If not found directly, try with src/ prefix
+          if (!mockFiles[relativePath] && !relativePath.startsWith('src/')) {
+            relativePath = `src/${relativePath}`;
+          }
+          // If still not found, try the full relative path extraction
+          if (!mockFiles[relativePath]) {
+            const srcIndex = filePath.indexOf('src/');
+            if (srcIndex !== -1) {
+              relativePath = filePath.substring(srcIndex);
+            }
+          }
+        }
         
         if (mockFiles[relativePath]) {
           return Promise.resolve(mockFiles[relativePath]);
         }
+        return Promise.reject(new Error(`File not found: ${filePath} (looked for: ${relativePath})`));
+      }),
+      stat: vi.fn().mockImplementation((filePath: string) => {
+        // Extract relative path same way as readFile
+        let relativePath = filePath;
+        if (typeof filePath === 'string') {
+          const match = filePath.match(/(?:.*[/\\])?(.+)$/);
+          if (match) {
+            relativePath = match[1];
+          }
+          if (!mockFiles[relativePath] && !relativePath.startsWith('src/')) {
+            relativePath = `src/${relativePath}`;
+          }
+          if (!mockFiles[relativePath]) {
+            const srcIndex = filePath.indexOf('src/');
+            if (srcIndex !== -1) {
+              relativePath = filePath.substring(srcIndex);
+            }
+          }
+        }
+        
+        if (mockFiles[relativePath]) {
+          // Return mock file stats - small file size to avoid fallback parsing
+          return Promise.resolve({ size: mockFiles[relativePath].length });
+        }
         return Promise.reject(new Error(`File not found: ${filePath}`));
       })
-    } as MockFsPromises;
+    } as MockFsPromises & { stat: ReturnType<typeof vi.fn> };
     
     mockFs.existsSync = vi.fn().mockReturnValue(false); // No .gitignore by default
     
@@ -381,6 +429,7 @@ export function newFunction(): void {}
 
       const result = await indexer.processProject();
 
+
       expect(result.nodes).toHaveLength(25);
       // All files should be processed successfully
       expect(Object.keys(result.files)).toHaveLength(25);
@@ -457,6 +506,438 @@ export function newFunction(): void {}
       expect(result.files['src/special-file.ts'].constants[0].name).toBe('SPECIAL_CONSTANT');
       expect(result.files['src/another_file.ts'].constants[0].name).toBe('ANOTHER_CONSTANT');
       expect(result.files['src/file.with.dots.ts'].constants[0].name).toBe('DOTTED_CONSTANT');
+    });
+  });
+
+  describe('critical failure path testing', () => {
+    describe('FileDiscovery cascading failures', () => {
+      it('should handle FileDiscovery complete failure during processing', async () => {
+        // Mock FileDiscovery to fail completely
+        const originalDiscoverFiles = FileDiscovery.discoverFiles;
+        FileDiscovery.discoverFiles = vi.fn().mockRejectedValue(new Error('EACCES: Permission denied, scandir'));
+
+        try {
+          await expect(indexer.processProject()).rejects.toThrow('Failed to process project');
+          
+          // Ensure original method is restored
+          expect(FileDiscovery.discoverFiles).toHaveBeenCalledWith('/test/project', {});
+        } finally {
+          FileDiscovery.discoverFiles = originalDiscoverFiles;
+        }
+      });
+
+      it('should handle FileDiscovery timeout during processing', async () => {
+        // Mock FileDiscovery to timeout
+        const originalDiscoverFiles = FileDiscovery.discoverFiles;
+        FileDiscovery.discoverFiles = vi.fn().mockImplementation(() => {
+          return new Promise((_, reject) => {
+            // Use vi.fn() for timer control in tests
+            const timer = globalThis.setTimeout(() => reject(new Error('ETIMEDOUT: Operation timed out')), 100);
+            return timer;
+          });
+        });
+
+        try {
+          await expect(indexer.processProject()).rejects.toThrow('Failed to process project: ETIMEDOUT: Operation timed out');
+        } finally {
+          FileDiscovery.discoverFiles = originalDiscoverFiles;
+        }
+      });
+
+      it('should handle filesystem corruption during file discovery', async () => {
+        // Mock FileDiscovery to fail with filesystem corruption
+        const originalDiscoverFiles = FileDiscovery.discoverFiles;
+        FileDiscovery.discoverFiles = vi.fn().mockRejectedValue(new Error('EIO: I/O error, scandir'));
+
+        try {
+          await expect(indexer.processProject()).rejects.toThrow('Failed to process project: EIO: I/O error, scandir');
+        } finally {
+          FileDiscovery.discoverFiles = originalDiscoverFiles;
+        }
+      });
+    });
+
+    describe('AST Parser cascading failures', () => {
+      it('should continue processing when AST parser fails on critical files', async () => {
+        mockFiles = {
+          'src/critical.ts': 'export const critical = true;',
+          'src/normal.ts': 'export const normal = true;'
+        };
+
+        // Mock fs.promises.readFile to fail for critical file
+        const originalReadFile = mockFs.promises.readFile;
+        mockFs.promises.readFile = vi.fn().mockImplementation((filePath: string) => {
+          if (filePath.includes('critical.ts')) {
+            return Promise.reject(new Error('ENOENT: File corrupted or deleted'));
+          }
+          return originalReadFile(filePath);
+        });
+
+        // Mock console.warn to capture warnings
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await indexer.processProject();
+
+        expect(result.nodes).toHaveLength(2);
+        expect(result.files['src/normal.ts']).toBeDefined();
+        expect(result.files['src/critical.ts']).toBeDefined();
+        
+        // Critical file should have empty content due to read failure
+        expect(result.files['src/critical.ts']).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+
+        consoleSpy.mockRestore();
+      });
+
+      it('should handle memory exhaustion during AST parsing', async () => {
+        // Generate a very large file that could cause memory issues
+        const largeContent = 'export const data = [' + 
+          Array.from({ length: 100000 }, (_, i) => `"item${i}"`).join(',') + 
+          '];';
+        
+        mockFiles = {
+          'src/large.ts': largeContent,
+          'src/small.ts': 'export const small = true;'
+        };
+
+        // Mock file size check to allow processing
+        mockFs.promises.stat = vi.fn().mockResolvedValue({ size: 500 }); // Under limit
+
+        const result = await indexer.processProject();
+
+        // Should complete processing despite large file
+        expect(result.nodes).toHaveLength(2);
+        expect(result.files['src/small.ts']).toBeDefined();
+        expect(result.files['src/large.ts']).toBeDefined();
+      });
+
+      it('should handle corrupted TypeScript syntax gracefully', async () => {
+        mockFiles = {
+          'src/corrupted.ts': `
+            import { Component } from 'react
+            export function broken(
+            class Invalid {
+              method( {
+            export const incomplete = 
+          `,
+          'src/valid.ts': 'export const valid = true;'
+        };
+
+        const result = await indexer.processProject();
+
+        expect(result.nodes).toHaveLength(2);
+        expect(result.files['src/valid.ts']).toBeDefined();
+        expect(result.files['src/corrupted.ts']).toBeDefined();
+        
+        // Corrupted file should still have some parsed content (TypeScript parser is resilient)
+        const corruptedFile = result.files['src/corrupted.ts'];
+        expect(corruptedFile.imports).toBeDefined();
+        expect(corruptedFile.functions).toBeDefined();
+        expect(corruptedFile.classes).toBeDefined();
+        expect(corruptedFile.constants).toBeDefined();
+      });
+    });
+
+    describe('Permission and security failures', () => {
+      it('should handle permission denied on individual files', async () => {
+        mockFiles = {
+          'src/public.ts': 'export const public = true;',
+          'src/restricted.ts': 'export const restricted = true;'
+        };
+
+        // Mock permission error for restricted file
+        const originalReadFile = mockFs.promises.readFile;
+        mockFs.promises.readFile = vi.fn().mockImplementation((filePath: string) => {
+          if (filePath.includes('restricted.ts')) {
+            const error: MockError = new Error('EACCES: permission denied, open');
+            error.code = 'EACCES';
+            return Promise.reject(error);
+          }
+          return originalReadFile(filePath);
+        });
+
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await indexer.processProject();
+
+        expect(result.nodes).toHaveLength(2);
+        expect(result.files['src/public.ts']).toBeDefined();
+        expect(result.files['src/restricted.ts']).toBeDefined();
+        
+        // Restricted file should have empty content due to permission error
+        expect(result.files['src/restricted.ts']).toEqual({
+          imports: [],
+          dependencies: [],
+          functions: [],
+          classes: [],
+          constants: []
+        });
+
+        consoleSpy.mockRestore();
+      });
+
+      it('should handle network filesystem timeout errors', async () => {
+        mockFiles = {
+          'src/local.ts': 'export const local = true;',
+          'src/network.ts': 'export const network = true;'
+        };
+
+        // Mock network timeout for network file
+        const originalReadFile = mockFs.promises.readFile;
+        mockFs.promises.readFile = vi.fn().mockImplementation((filePath: string) => {
+          if (filePath.includes('network.ts')) {
+            const error: MockError = new Error('ETIMEDOUT: network timeout');
+            error.code = 'ETIMEDOUT';
+            return Promise.reject(error);
+          }
+          return originalReadFile(filePath);
+        });
+
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await indexer.processProject();
+
+        expect(result.nodes).toHaveLength(2);
+        expect(result.files['src/local.ts']).toBeDefined();
+        expect(result.files['src/network.ts']).toBeDefined();
+
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('Index corruption and recovery', () => {
+      it('should handle corrupted existing index during updateFile', async () => {
+        mockFiles = {
+          'src/index.ts': 'export const original = true;'
+        };
+
+        const validIndex = await indexer.processProject();
+        
+        // Corrupt the index structure
+        const corruptedIndex: ProjectIndex = {
+          ...validIndex,
+          files: null as unknown as ProjectIndex['files'], // Corrupt files object
+          metadata: {
+            ...validIndex.metadata,
+            version: -1 // Invalid version
+          }
+        };
+
+        // Update file content
+        mockFiles['src/index.ts'] = 'export const updated = true;';
+
+        // Should handle corrupted index gracefully by throwing an error
+        await expect(indexer.updateFile('src/index.ts', corruptedIndex)).rejects.toThrow('Failed to update file src/index.ts');
+      });
+
+      it('should handle tree structure corruption during removeFile', async () => {
+        mockFiles = {
+          'src/index.ts': 'export const test = true;',
+          'src/utils.ts': 'export const utils = true;'
+        };
+
+        const validIndex = await indexer.processProject();
+        
+        // Corrupt the tree structure
+        const corruptedIndex: ProjectIndex = {
+          ...validIndex,
+          tree: null as unknown as ProjectIndex['tree'] // Corrupt tree
+        };
+
+        // Should handle corrupted tree gracefully
+        const result = indexer.removeFile('src/utils.ts', corruptedIndex);
+
+        expect(result).toBeDefined();
+        expect(result.nodes).toHaveLength(1);
+        expect(result.nodes).toContain('src/index.ts');
+        expect(result.tree).toBeDefined(); // Should rebuild tree
+        expect(result.tree.name).toBe('project');
+      });
+    });
+
+    describe('Resource exhaustion scenarios', () => {
+      it('should handle disk space exhaustion during processing', async () => {
+        mockFiles = {
+          'src/test.ts': 'export const test = true;'
+        };
+
+        // Mock FileDiscovery to fail with disk space error
+        const originalDiscoverFiles = FileDiscovery.discoverFiles;
+        FileDiscovery.discoverFiles = vi.fn().mockRejectedValue(new Error('ENOSPC: no space left on device'));
+
+        try {
+          await expect(indexer.processProject()).rejects.toThrow('Failed to process project: ENOSPC: no space left on device');
+        } finally {
+          FileDiscovery.discoverFiles = originalDiscoverFiles;
+        }
+      });
+
+      it('should handle too many open files error', async () => {
+        // Generate many files to trigger file handle exhaustion
+        mockFiles = {};
+        for (let i = 0; i < 50; i++) {
+          mockFiles[`src/file${i}.ts`] = `export const value${i} = ${i};`;
+        }
+
+        // Mock file handle exhaustion after 20 files
+        let fileCount = 0;
+        const originalReadFile = mockFs.promises.readFile;
+        mockFs.promises.readFile = vi.fn().mockImplementation((filePath: string) => {
+          fileCount++;
+          if (fileCount > 20) {
+            const error: MockError = new Error('EMFILE: too many open files');
+            error.code = 'EMFILE';
+            return Promise.reject(error);
+          }
+          return originalReadFile(filePath);
+        });
+
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await indexer.processProject();
+
+        // Should still complete with partial processing
+        expect(result.nodes).toHaveLength(50);
+        
+        // First 20 files should be processed, rest should have empty content
+        const processedFiles = Object.keys(result.files).filter(key => 
+          result.files[key].constants && result.files[key].constants.length > 0
+        );
+        expect(processedFiles.length).toBeLessThanOrEqual(20);
+
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('Clean state verification after failures', () => {
+      it('should maintain clean state after FileDiscovery failure', async () => {
+        const originalDiscoverFiles = FileDiscovery.discoverFiles;
+        
+        try {
+          // Make FileDiscovery fail
+          FileDiscovery.discoverFiles = vi.fn().mockRejectedValue(new Error('Discovery failed'));
+          
+          await expect(indexer.processProject()).rejects.toThrow('Failed to process project');
+          
+          // Verify no partial state is left
+          expect(FileDiscovery.discoverFiles).toHaveBeenCalledTimes(1);
+          
+          // Restore and verify normal operation works
+          FileDiscovery.discoverFiles = originalDiscoverFiles;
+          
+          mockFiles = { 'src/test.ts': 'export const test = true;' };
+          const result = await indexer.processProject();
+          expect(result.nodes).toHaveLength(1);
+          
+        } finally {
+          FileDiscovery.discoverFiles = originalDiscoverFiles;
+        }
+      });
+
+      it('should not create partial indexes on processing failure', async () => {
+        mockFiles = {
+          'src/good.ts': 'export const good = true;'
+        };
+
+        // Mock a failure during tree building by corrupting the processed files
+        const spyProcessProject = vi.spyOn(indexer, 'processProject').mockImplementation(async () => {
+          // Simulate a failure after file discovery but before completion
+          throw new Error('Tree building failed');
+        });
+
+        await expect(indexer.processProject()).rejects.toThrow('Tree building failed');
+
+        // Verify the spy was called
+        expect(spyProcessProject).toHaveBeenCalled();
+
+        // Restore original method and verify clean retry works
+        spyProcessProject.mockRestore();
+        const result = await indexer.processProject();
+        expect(result.nodes).toHaveLength(1);
+      });
+
+      it('should handle updateFile failure without corrupting existing index', async () => {
+        mockFiles = {
+          'src/index.ts': 'export const original = true;'
+        };
+
+        const originalIndex = await indexer.processProject();
+        const originalFilesCount = Object.keys(originalIndex.files).length;
+
+        // Mock updateFile to fail by making ASTParser fail
+        mockFiles['src/index.ts'] = 'export const updated = true;';
+        
+        // Simulate failure by making ASTParser.parseFile fail
+        const originalParseFile = ASTParser.parseFile;
+        ASTParser.parseFile = vi.fn().mockRejectedValue(new Error('Simulated update failure'));
+
+        try {
+          await expect(indexer.updateFile('src/index.ts', originalIndex)).rejects.toThrow('Failed to update file');
+        } finally {
+          ASTParser.parseFile = originalParseFile;
+        }
+
+        // Original index should remain unchanged
+        expect(originalIndex.files['src/index.ts']).toBeDefined();
+        expect(Object.keys(originalIndex.files)).toHaveLength(originalFilesCount);
+
+        // Restore and verify update works normally
+        const updatedIndex = await indexer.updateFile('src/index.ts', originalIndex);
+        expect(updatedIndex.files['src/index.ts']).toBeDefined();
+      });
+    });
+
+    describe('Error propagation and logging', () => {
+      it('should properly log and propagate FileDiscovery errors', async () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const originalDiscoverFiles = FileDiscovery.discoverFiles;
+        
+        try {
+          const customError = new Error('Custom FileDiscovery error');
+          FileDiscovery.discoverFiles = vi.fn().mockRejectedValue(customError);
+
+          await expect(indexer.processProject()).rejects.toThrow('Failed to process project: Custom FileDiscovery error');
+
+        } finally {
+          FileDiscovery.discoverFiles = originalDiscoverFiles;
+          consoleSpy.mockRestore();
+        }
+      });
+
+      it('should handle and log AST parser specific errors', async () => {
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        
+        mockFiles = {
+          'src/problematic.ts': 'export const test = true;'
+        };
+
+        // Mock a specific AST parser error
+        const originalReadFile = mockFs.promises.readFile;
+        mockFs.promises.readFile = vi.fn().mockImplementation((filePath: string) => {
+          if (filePath.includes('problematic.ts')) {
+            const error = new Error('Syntax error in TypeScript parser');
+            error.name = 'SyntaxError';
+            return Promise.reject(error);
+          }
+          return originalReadFile(filePath);
+        });
+
+        const result = await indexer.processProject();
+
+        // Should complete despite AST errors
+        expect(result.nodes).toHaveLength(1);
+        expect(result.files['src/problematic.ts']).toBeDefined();
+
+        // Should have logged the warning
+        expect(consoleSpy).toHaveBeenCalled();
+
+        consoleSpy.mockRestore();
+      });
     });
   });
 

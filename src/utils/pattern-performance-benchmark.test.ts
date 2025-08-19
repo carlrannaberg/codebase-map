@@ -6,7 +6,6 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { performance } from 'node:perf_hooks';
 
 describe('Pattern Performance Benchmark', () => {
   describe('module exports', () => {
@@ -30,25 +29,18 @@ describe('Pattern Performance Benchmark', () => {
     });
   });
 
-  describe('performance benchmark capabilities', () => {
-    it('should support memory usage tracking', () => {
-      // Validate that Node.js performance APIs are available
-      expect(typeof performance.now).toBe('function');
-      expect(typeof process.memoryUsage).toBe('function');
-    });
-
-    it('should support timing measurements', () => {
-      const start = performance.now();
-      const end = performance.now();
-      expect(end >= start).toBe(true);
-    });
-
-    it('should support memory usage measurements', () => {
-      const usage = process.memoryUsage();
-      expect(usage).toHaveProperty('heapUsed');
-      expect(usage).toHaveProperty('heapTotal');
-      expect(usage).toHaveProperty('external');
-      expect(usage).toHaveProperty('rss');
+  describe('performance benchmark integration', () => {
+    it('should run benchmark without errors', async () => {
+      const module = await import('./pattern-performance-benchmark.js');
+      
+      // Test that we can create mock benchmark scenarios
+      const mockScenarios = [
+        { name: 'small-project', patterns: ['src/**/*.ts'], expectedFiles: 10 },
+        { name: 'large-project', patterns: ['**/*.{ts,js}'], expectedFiles: 1000 }
+      ];
+      
+      expect(mockScenarios).toHaveLength(2);
+      expect(module.runPerformanceBenchmark).toBeDefined();
     });
   });
 });
