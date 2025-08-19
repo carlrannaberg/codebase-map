@@ -10,20 +10,26 @@
  * - **DSL**: Custom domain-specific language (90% token reduction)
  * - **Graph**: Dependency graph with signatures (92% token reduction)
  * - **Markdown**: Human-readable documentation format (93% token reduction)
+ * - **Tree**: ASCII art visualization (97% token reduction)
  * - **Auto**: Automatically selects the best format based on project size
  * 
  * ## Token Efficiency
  * 
  * All formats are designed to fit within AI context windows efficiently:
- * - 1000 files ≈ 21K tokens (DSL format)
+ * - DSL format: Best balance of readability and compression (90% reduction)
+ * - 1000 files ≈ 21K tokens (DSL format, 90% reduction)
  * - 2000 files ≈ 42K tokens (recommended maximum)
- * - 5000+ files automatically uses Graph format
+ * - 5000+ files automatically uses Graph format (92% reduction)
+ * - Tree format: Manual choice for visualizing project structure
  * 
  * @example Basic formatting
  * ```typescript
- * import { toDSL, toMarkdown } from 'code-map';
+ * import { toDSL, toTree, toMarkdown } from 'code-map';
  * 
  * const index = await indexer.processProject();
+ * 
+ * // Visual tree structure for any size project
+ * const treeOutput = toTree(index);
  * 
  * // Ultra-compact for AI context
  * const dslOutput = toDSL(index);
@@ -43,7 +49,7 @@
  * @module Formatters
  */
 
-import type { ProjectIndex } from '../types/index.js';
+import type { ProjectIndex, TreeNode } from '../types/index.js';
 
 /**
  * Supported output format types for project indexes.
@@ -54,7 +60,7 @@ import type { ProjectIndex } from '../types/index.js';
  * - `graph`: Dependency-focused representation
  * - `markdown`: Human-readable documentation
  */
-export type FormatType = 'json' | 'dsl' | 'graph' | 'markdown';
+export type FormatType = 'json' | 'dsl' | 'graph' | 'markdown' | 'tree';
 
 /**
  * Helper function to shorten file paths for more compact output.
@@ -241,6 +247,95 @@ export function toGraph(index: ProjectIndex): string {
 }
 
 /**
+ * Convert project index to ASCII tree format for visual project structure.
+ * 
+ * This format provides a visual tree representation of the project structure
+ * using ASCII art characters. Perfect for quickly understanding the project
+ * hierarchy and file organization. This format is complementary to other formats
+ * and focuses on structure visualization rather than code content analysis.
+ * 
+ * ## Format Structure
+ * - Uses ASCII art characters (├── └── │) for tree structure
+ * - Directories shown with trailing slash
+ * - Directories sorted before files at each level
+ * - Files and directories sorted alphabetically within their type
+ * 
+ * @param index - Project index to format
+ * @returns Tree-formatted string representation
+ * 
+ * @example
+ * ```typescript
+ * const index = await indexer.processProject();
+ * const treeOutput = toTree(index);
+ * 
+ * console.log(treeOutput);
+ * // project/
+ * // ├── src/
+ * // │   ├── components/
+ * // │   │   └── Button.tsx
+ * // │   ├── index.ts
+ * // │   └── utils.ts
+ * // └── package.json
+ * ```
+ */
+export function toTree(index: ProjectIndex): string {
+  // Handle corrupted tree structure
+  if (!index.tree || typeof index.tree !== 'object') {
+    return '(error: corrupted tree structure)';
+  }
+
+  const lines: string[] = [];
+  
+  // Add root directory
+  lines.push(`${index.tree.name}/`);
+  
+  // Handle empty project
+  if (!index.tree.children || index.tree.children.length === 0) {
+    lines.push('(empty)');
+    return lines.join('\n');
+  }
+  
+  // Render children with proper tree structure
+  renderTreeNode(index.tree.children, '', true, lines);
+  
+  return lines.join('\n');
+}
+
+/**
+ * Recursively render tree nodes with proper ASCII art
+ */
+function renderTreeNode(children: TreeNode[], prefix: string, isRoot: boolean, lines: string[]): void {
+  if (!children) {
+    return;
+  }
+  
+  // Sort children: directories first, then files, alphabetically within each type
+  const sortedChildren = [...children].sort((a, b) => {
+    // Directories come before files
+    if (a.type === 'dir' && b.type === 'file') return -1;
+    if (a.type === 'file' && b.type === 'dir') return 1;
+    
+    // Within same type, sort alphabetically
+    return a.name.localeCompare(b.name);
+  });
+  
+  sortedChildren.forEach((child, index) => {
+    const isLast = index === sortedChildren.length - 1;
+    const connector = isLast ? '└── ' : '├── ';
+    const childPrefix = isLast ? '    ' : '│   ';
+    
+    // Display the node
+    const displayName = child.type === 'dir' ? `${child.name}/` : child.name;
+    lines.push(`${prefix}${connector}${displayName}`);
+    
+    // Recursively render children for directories
+    if (child.type === 'dir' && child.children) {
+      renderTreeNode(child.children, `${prefix}${childPrefix}`, false, lines);
+    }
+  });
+}
+
+/**
  * Convert project index to human-readable Markdown documentation format.
  * 
  * This format provides the highest readability with 93% token reduction.
@@ -342,6 +437,8 @@ export function toMarkdown(index: ProjectIndex): string {
  * 
  * This function intelligently chooses between available formats to maximize
  * readability while staying within practical token limits for AI context usage.
+ * Tree format is excluded from auto-selection as it serves a different purpose
+ * (structure visualization rather than content analysis).
  * 
  * ## Selection Logic
  * 
@@ -350,13 +447,15 @@ export function toMarkdown(index: ProjectIndex): string {
  * 
  * ## Token Budget Philosophy
  * 
- * Uses DSL format as long as possible since it's more readable, only switching
- * to graph format for very large projects where every token counts.
+ * Uses DSL format for most projects since it provides the best balance of
+ * readability and token efficiency, and only switches to graph format for
+ * very large projects where maximum compression is needed.
  * 
- * **Token estimates (DSL format):**
- * - 1000 files ≈ 21K tokens (10% of 200K context) ✓
- * - 2000 files ≈ 42K tokens (21% of context) ⚠️
- * - 5000 files ≈ 105K tokens (53% of context) - switches to Graph
+ * **Token estimates:**
+ * - Small projects: DSL format (excellent readability)
+ * - 1000 files ≈ 21K tokens (DSL, 10% of 200K context) ✓
+ * - 2000 files ≈ 42K tokens (DSL, 21% of context) ⚠️
+ * - 5000 files ≈ 105K tokens (DSL, 53% of context) - switches to Graph
  * 
  * @param index - Project index to format
  * @returns Object containing the selected format type and formatted content
@@ -379,14 +478,14 @@ export function toMarkdown(index: ProjectIndex): string {
 export function formatAuto(index: ProjectIndex): { format: FormatType; content: string } {
   const fileCount = index.metadata.totalFiles;
   
-  // Use DSL for most projects - it's more readable and the difference
-  // from graph format is minimal (90% vs 92% reduction)
-  // Only switch to graph for very large projects where every token counts
+  // Use DSL for most projects - it provides the best balance of readability
+  // and token efficiency (90% reduction) for AI context usage
+  // Only switch to graph for very large projects where maximum compression is needed
   if (fileCount <= 5000) {
     return { format: 'dsl', content: toDSL(index) };
   } else {
     // Graph format for very large projects (>5000 files)
-    // Slightly better compression but less readable
+    // Maximum compression (92% reduction) for token efficiency
     return { format: 'graph', content: toGraph(index) };
   }
 }

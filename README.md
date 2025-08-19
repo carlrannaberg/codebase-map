@@ -61,7 +61,7 @@ Formats the index for LLM consumption (outputs to stdout).
 codebase-map format [options]
 
 Options:
-  -f, --format <type>  Output format: auto|json|dsl|graph|markdown
+  -f, --format <type>  Output format: auto|json|dsl|graph|markdown|tree
   -s, --stats          Show statistics to stderr
 ```
 
@@ -189,10 +189,98 @@ The tool automatically selects the best format based on project size, or you can
 
 | Format | Description | Best For | Token Reduction |
 |--------|-------------|----------|-----------------|
+| `tree` | ASCII art directory structure | Structure visualization (any size) | ~97% |
 | `dsl` | Domain-specific language | Most projects (≤5000 files) | ~90% |
 | `graph` | Dependency graph with signatures | Very large projects (>5000 files) | ~92% |
-| `markdown` | Human-readable markdown | Documentation | ~92% |
+| `markdown` | Human-readable markdown | Documentation | ~93% |
 | `json` | Compact JSON | Baseline | 0% |
+
+### Format Selection Guide
+
+Choose the right format for your use case:
+
+#### Tree Format (`tree`)
+**Best for:** Visualizing project structure, understanding file organization
+- **Token reduction:** 97% (most efficient for structure)
+- **Readability:** Excellent visual hierarchy
+- **Use cases:** Understanding project layout, presenting structure to stakeholders, exploring unfamiliar codebases
+- **Selection:** Manual only - complements other formats by showing structure rather than code content
+
+```bash
+# Ideal for understanding project structure, exploring new codebases
+codebase-map format --format tree
+```
+
+#### DSL Format (`dsl`) 
+**Best for:** Most development workflows, AI context
+- **Token reduction:** 90% (excellent balance)
+- **Readability:** High - shows functions, classes, dependencies clearly
+- **Use cases:** Code analysis, AI assistance, dependency tracking
+- **Automatic selection:** Projects with ≤5000 files (default choice)
+
+```bash
+# Perfect for typical applications and libraries
+codebase-map format --format dsl
+```
+
+#### Graph Format (`graph`)
+**Best for:** Large codebases, dependency analysis
+- **Token reduction:** 92% (maximum compression for content)
+- **Readability:** Good - focuses on relationships
+- **Use cases:** Large projects, dependency debugging, architecture analysis
+- **Automatic selection:** Projects with >5000 files
+
+```bash
+# Essential for large monorepos and enterprise applications
+codebase-map format --format graph
+```
+
+#### Markdown Format (`markdown`)
+**Best for:** Documentation, reports, human reading
+- **Token reduction:** 93% (great for docs)
+- **Readability:** Excellent - formatted for humans
+- **Use cases:** Project documentation, README generation, reports
+- **Manual selection only**
+
+```bash
+# Great for generating project documentation
+codebase-map format --format markdown > PROJECT_STRUCTURE.md
+```
+
+### Project Size Examples
+
+```bash
+# Understanding any project's structure
+codebase-map format --format tree
+# └── Shows clear visual hierarchy
+
+# Typical web application (100-500 files)
+codebase-map format --format dsl  
+# └── Shows functions, dependencies, classes compactly
+
+# Large enterprise application (1000-5000 files)
+codebase-map format --format dsl --stats
+# └── Monitor token usage with --stats
+
+# Massive monorepo (>5000 files)
+codebase-map format --format graph
+# └── Maximum compression for context limits
+```
+
+### Token Budget Planning
+
+**Recommended token allocations for AI context:**
+- **Small projects (<100 files):** DSL format, ~2,100 tokens
+- **Medium projects (100-1000 files):** DSL format, ~2,100-21,000 tokens
+- **Large projects (1000-2000 files):** DSL format, ~21,000-42,000 tokens ⚠️
+- **Very large projects (2000-5000 files):** DSL format, approaching context limits
+- **Enterprise projects (>5000 files):** Graph format, auto-switches for maximum efficiency
+- **Structure visualization (any size):** Tree format, manual choice for exploring layout
+
+**Context window usage guidelines:**
+- Keep project structure under 25% of available context
+- Use `--stats` flag to monitor token usage
+- Consider using pattern filtering for large projects
 
 ## Integration with Claude
 
@@ -222,7 +310,26 @@ codebase-map format | pbcopy
 # Then paste into Claude conversation
 ```
 
-## Example Output (DSL Format)
+## Example Output
+
+### Tree Format (Structure Visualization)
+
+```
+project/
+├── src/
+│   ├── components/
+│   │   ├── Button.tsx
+│   │   └── Input.tsx
+│   ├── utils/
+│   │   └── helpers.ts
+│   ├── index.ts
+│   └── types.ts
+├── tests/
+│   └── setup.ts
+└── package.json
+```
+
+### DSL Format (Most Projects)
 
 ```
 src/core/dependency-resolver.ts > types/index.ts
@@ -240,10 +347,11 @@ src/utils/find-project-root.ts >
 ## Performance
 
 - Processes ~400 files/second
-- Generates ~29 tokens/file in DSL format  
-- Generates ~24 tokens/file in graph format
-- Generates ~23 tokens/file in markdown format
-- 90-92% token reduction vs compact JSON
+- Generates ~3 tokens/file in tree format (97% reduction)
+- Generates ~29 tokens/file in DSL format (90% reduction)  
+- Generates ~24 tokens/file in graph format (92% reduction)
+- Generates ~23 tokens/file in markdown format (93% reduction)
+- 90-97% token reduction vs compact JSON
 
 ## Upgrading
 

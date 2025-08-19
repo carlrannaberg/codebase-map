@@ -36,6 +36,7 @@ import {
   toDSL, 
   toGraph,
   toMarkdown,
+  toTree,
   formatAuto,
   getCompressionStats
 } from './core/index-formatter.js';
@@ -297,7 +298,7 @@ program
 program
   .command('format')
   .description('Format the index for LLMs (outputs to stdout)')
-  .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown', 'auto')
+  .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown|tree', 'auto')
   .option('-s, --stats', 'show statistics to stderr (does not affect stdout output)')
   .action((options) => {
     const { format, stats } = options;
@@ -327,6 +328,9 @@ program
         break;
       case 'markdown':
         result = { format: 'markdown', content: toMarkdown(index) };
+        break;
+      case 'tree':
+        result = { format: 'tree', content: toTree(index) };
         break;
       case 'auto':
       default:
