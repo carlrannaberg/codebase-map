@@ -180,8 +180,8 @@ describe('CLI format command filtering logic', () => {
       // Show filtering statistics to stderr
       const filterStats = mockGetFilteringStats(originalIndex, index, filterOptions);
       mockConsoleError('--- Filtering Applied ---');
-      mockConsoleError(`Files: ${filterStats.originalFileCount} → ${filterStats.filteredFileCount} (${filterStats.reductionPercentage.toFixed(1)}% reduction)`);
-      mockConsoleError(`Dependencies: ${filterStats.originalEdgeCount} → ${filterStats.filteredEdgeCount} (${filterStats.edgeReductionPercentage.toFixed(1)}% reduction)`);
+      mockConsoleError(`Files: ${filterStats.filteredFileCount} of ${filterStats.originalFileCount}`);
+      mockConsoleError(`Dependencies: ${filterStats.filteredEdgeCount} of ${filterStats.originalEdgeCount}`);
       if (filterOptions.include) {
         mockConsoleError(`Include patterns: ${filterOptions.include.join(', ')}`);
       }
@@ -329,8 +329,8 @@ describe('CLI format command filtering logic', () => {
 
       // Verify filtering stats were written to stderr
       expect(mockConsoleError).toHaveBeenCalledWith('--- Filtering Applied ---');
-      expect(mockConsoleError).toHaveBeenCalledWith('Files: 6 → 3 (50.0% reduction)');
-      expect(mockConsoleError).toHaveBeenCalledWith('Dependencies: 3 → 1 (66.7% reduction)');
+      expect(mockConsoleError).toHaveBeenCalledWith('Files: 3 of 6');
+      expect(mockConsoleError).toHaveBeenCalledWith('Dependencies: 1 of 3');
       expect(mockConsoleError).toHaveBeenCalledWith('Include patterns: src/**');
     });
   });
@@ -487,7 +487,7 @@ describe('CLI format command filtering logic', () => {
 
       // Should still output something (empty result)
       expect(mockConsoleLog).toHaveBeenCalledWith('// No files found');
-      expect(mockConsoleError).toHaveBeenCalledWith('Files: 6 → 0 (100.0% reduction)');
+      expect(mockConsoleError).toHaveBeenCalledWith('Files: 0 of 6');
     });
 
     it('should handle very large token count warning', () => {

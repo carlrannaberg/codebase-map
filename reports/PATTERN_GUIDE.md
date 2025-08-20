@@ -673,8 +673,8 @@ codebase-map format --include "src/**" --exclude "**/*.test.ts" --stats
 
 # Output to stderr:
 # --- Filtering Applied ---
-# Files: 1,234 → 456 (63.0% reduction)
-# Dependencies: 2,100 → 980 (53.3% reduction)
+# Files: 456 of 1,234
+# Dependencies: 980 of 2,100
 # Include patterns: src/**
 # Exclude patterns: **/*.test.ts
 ```

@@ -337,8 +337,8 @@ program
       // Show filtering statistics to stderr
       const filterStats = getFilteringStats(originalIndex, index, filterOptions);
       console.error(`\n--- Filtering Applied ---`);
-      console.error(`Files: ${filterStats.originalFileCount} → ${filterStats.filteredFileCount} (${filterStats.reductionPercentage.toFixed(1)}% reduction)`);
-      console.error(`Dependencies: ${filterStats.originalEdgeCount} → ${filterStats.filteredEdgeCount} (${filterStats.edgeReductionPercentage.toFixed(1)}% reduction)`);
+      console.error(`Files: ${filterStats.filteredFileCount} of ${filterStats.originalFileCount}`);
+      console.error(`Dependencies: ${filterStats.filteredEdgeCount} of ${filterStats.originalEdgeCount}`);
       if (filterOptions.include) {
         console.error(`Include patterns: ${filterOptions.include.join(', ')}`);
       }
