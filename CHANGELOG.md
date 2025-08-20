@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `--exclude <patterns...>` - Exclude file patterns when formatting  
   - Works with all format types (json, dsl, graph, markdown, tree)
   - Enables "scan once, format many times" workflow for efficient analysis
-  - Shows filtering statistics to stderr (files/dependencies reduction percentages)
+  - Shows clear filtering statistics to stderr (e.g., "Files: 456 of 1,234")
   - Instant filtering without file system re-scanning
 - **Enhanced Workflow**: Powerful new analysis patterns
   - Focus on specific directories: `--include "src/**"`
