@@ -26,3 +26,7 @@ export {
   type PatternConfiguration,
   type PatternPerformanceMetrics,
 } from './pattern-logger.js';
+export {
+  filterProjectIndex,
+  getFilteringStats,
+} from './project-index-filter.js';

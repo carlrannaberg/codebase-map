@@ -61,8 +61,10 @@ Formats the index for LLM consumption (outputs to stdout).
 codebase-map format [options]
 
 Options:
-  -f, --format <type>  Output format: auto|json|dsl|graph|markdown|tree
-  -s, --stats          Show statistics to stderr
+  -f, --format <type>      Output format: auto|json|dsl|graph|markdown|tree
+  -s, --stats              Show statistics to stderr
+  --include <patterns...>  Include file patterns (glob syntax)
+  --exclude <patterns...>  Exclude file patterns (glob syntax)
 ```
 
 ### `update`
@@ -281,6 +283,115 @@ codebase-map format --format graph
 - Keep project structure under 25% of available context
 - Use `--stats` flag to monitor token usage
 - Consider using pattern filtering for large projects
+
+## Filtering on Format
+
+The `format` command supports filtering the already-generated index without needing to re-scan. This enables powerful workflows:
+
+### Basic Filtering
+
+```bash
+# Generate index once
+codebase-map scan
+
+# Format different views without re-scanning
+codebase-map format --include "src/**" --exclude "**/*.test.ts"
+codebase-map format --include "docs/**" --format markdown
+codebase-map format --include "packages/core/**" --format dsl
+```
+
+### Workflow Benefits
+
+**Scan once, format many times:**
+- Generate comprehensive index: `codebase-map scan`
+- Create focused views: `codebase-map format --include "src/components/**"`
+- Exclude test files: `codebase-map format --exclude "**/*.{test,spec}.ts"`
+- Focus on specific packages: `codebase-map format --include "packages/utils/**"`
+
+**Performance advantages:**
+- No file system scanning on format (instant filtering)
+- Apply different filters to same index data
+- Combine with any output format (`--format dsl`, `--format tree`, etc.)
+
+### Filtering Examples
+
+#### Focus on Source Code
+```bash
+# Show only source files, exclude tests and build outputs
+codebase-map format --include "src/**" --exclude "**/*.test.ts" --exclude "dist/**"
+```
+
+#### Monorepo Package Analysis
+```bash
+# Focus on specific packages
+codebase-map format --include "packages/core/**" --include "packages/utils/**"
+
+# Analyze one package in detail
+codebase-map format --include "packages/ui/src/**" --format dsl
+```
+
+#### Documentation Focus
+```bash
+# Extract documentation structure
+codebase-map format --include "docs/**" --include "*.md" --format tree
+
+# Get markdown files in readable format
+codebase-map format --include "**/*.md" --format markdown
+```
+
+#### Component Analysis
+```bash
+# Focus on React components
+codebase-map format --include "**/*.{tsx,jsx}" --exclude "**/*.test.*"
+
+# Analyze utility functions
+codebase-map format --include "**/utils/**" --include "**/helpers/**"
+```
+
+### Filtering Statistics
+
+The format command shows filtering impact to stderr (doesn't affect stdout):
+
+```bash
+codebase-map format --include "src/**" --exclude "**/*.test.ts" --stats
+
+# Output to stderr:
+# --- Filtering Applied ---
+# Files: 1,234 → 456 (63.0% reduction)
+# Dependencies: 2,100 → 980 (53.3% reduction)
+# Include patterns: src/**
+# Exclude patterns: **/*.test.ts
+#
+# --- Statistics (dsl format) ---
+# Size: 45.2 KB (89% reduction)
+# Tokens: ~12,450 (27 per file)
+# Files: 456
+```
+
+### Advanced Filtering Patterns
+
+```bash
+# Complex monorepo filtering
+codebase-map format \
+  --include "packages/*/src/**" \
+  --include "shared/**" \
+  --exclude "**/*.{test,spec,mock}.{ts,tsx,js,jsx}" \
+  --exclude "**/fixtures/**" \
+  --exclude "**/__tests__/**"
+
+# TypeScript-only analysis
+codebase-map format \
+  --include "**/*.{ts,tsx}" \
+  --exclude "**/*.d.ts" \
+  --exclude "node_modules/**"
+
+# API-focused view
+codebase-map format \
+  --include "src/api/**" \
+  --include "src/routes/**" \
+  --include "src/middleware/**" \
+  --format graph
+```
 
 ## Integration with Claude
 

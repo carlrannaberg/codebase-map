@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-08-20
+
+### Added
+- **Format Command Filtering**: Added include/exclude pattern support to format command
+  - `--include <patterns...>` - Include file patterns when formatting
+  - `--exclude <patterns...>` - Exclude file patterns when formatting  
+  - Works with all format types (json, dsl, graph, markdown, tree)
+  - Enables "scan once, format many times" workflow for efficient analysis
+  - Shows filtering statistics to stderr (files/dependencies reduction percentages)
+  - Instant filtering without file system re-scanning
+- **Enhanced Workflow**: Powerful new analysis patterns
+  - Focus on specific directories: `--include "src/**"`
+  - Exclude test files: `--exclude "**/*.test.ts"`
+  - Monorepo package analysis: `--include "packages/core/**"`
+  - Component-focused views: `--include "**/*.{tsx,jsx}"`
+
+### Changed
+- **Format Command Documentation**: Enhanced README with comprehensive filtering examples
+  - Added "Filtering on Format" section with practical workflows
+  - Added filtering statistics explanation
+  - Added monorepo and component analysis examples
+- **CLI Help**: Updated format command help to include new filtering options
+
 ## [0.5.0] - 2025-08-19
 
 ### Added

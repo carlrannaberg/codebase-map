@@ -12,6 +12,7 @@
 6. [Performance Optimization](#performance-optimization)
 7. [Troubleshooting](#troubleshooting)
 8. [Advanced Techniques](#advanced-techniques)
+9. [Format Command Filtering](#format-command-filtering)
 
 ## Quick Start
 
@@ -598,6 +599,109 @@ if [ -d "packages" ]; then
 fi
 
 codebase-map scan $INCLUDE_PATTERNS --exclude "**/*.{test,spec}.{ts,js}"
+```
+
+## Format Command Filtering
+
+The `format` command supports the same pattern syntax as the `scan` command, enabling powerful "scan once, format many times" workflows.
+
+### Basic Format Filtering
+
+```bash
+# Generate comprehensive index once
+codebase-map scan
+
+# Create focused views without re-scanning
+codebase-map format --include "src/**" --exclude "**/*.test.ts"
+codebase-map format --include "docs/**" --format tree
+codebase-map format --include "packages/core/**" --format dsl
+```
+
+### Workflow Benefits
+
+**Performance advantages:**
+- No file system scanning during format (instant filtering)
+- Apply different filters to same index data
+- Combine with any output format type
+
+**Analysis flexibility:**
+- Focus on specific components or packages
+- Generate multiple views for different audiences
+- Exclude test files or build artifacts on demand
+
+### Format Filtering Examples
+
+#### Source Code Analysis
+```bash
+# Full scan once
+codebase-map scan
+
+# Different filtered views
+codebase-map format --include "src/**" --exclude "**/*.test.ts" --format dsl > src-analysis.txt
+codebase-map format --include "src/components/**" --format markdown > components-docs.md
+codebase-map format --include "src/api/**" --format graph > api-structure.txt
+```
+
+#### Monorepo Package Views
+```bash
+# Comprehensive scan
+codebase-map scan --include "packages/**" --exclude "**/node_modules/**"
+
+# Package-specific analyses
+codebase-map format --include "packages/core/**" --format dsl > core-package.txt
+codebase-map format --include "packages/ui/**" --format tree > ui-structure.txt
+codebase-map format --include "packages/{utils,shared}/**" --format graph > shared-deps.txt
+```
+
+#### Documentation Workflows
+```bash
+# Full project scan
+codebase-map scan
+
+# Generate different documentation views
+codebase-map format --include "docs/**" --format tree > docs-structure.md
+codebase-map format --include "**/*.md" --format markdown > all-markdown.md
+codebase-map format --include "src/**" --exclude "**/*.test.ts" --format markdown > src-docs.md
+```
+
+### Filter Statistics
+
+The format command shows filtering impact to stderr:
+
+```bash
+codebase-map format --include "src/**" --exclude "**/*.test.ts" --stats
+
+# Output to stderr:
+# --- Filtering Applied ---
+# Files: 1,234 → 456 (63.0% reduction)
+# Dependencies: 2,100 → 980 (53.3% reduction)
+# Include patterns: src/**
+# Exclude patterns: **/*.test.ts
+```
+
+### Format + Filter Combinations
+
+#### Component Analysis Pipeline
+```bash
+# Scan everything once
+codebase-map scan
+
+# Generate component views
+codebase-map format --include "**/*.{tsx,jsx}" --exclude "**/*.test.*" --format dsl | pbcopy
+codebase-map format --include "src/components/**" --format tree > component-structure.txt
+codebase-map format --include "src/hooks/**" --format markdown > hooks-docs.md
+```
+
+#### Multi-team Workflows
+```bash
+# Backend team view
+codebase-map format --include "src/{api,services,models}/**" --format graph > backend-view.txt
+
+# Frontend team view  
+codebase-map format --include "src/{components,pages,hooks}/**" --format dsl > frontend-view.txt
+
+# DevOps team view
+codebase-map format --include "scripts/**" --include "*.{yml,yaml}" --format tree > devops-view.txt
 ```
 
 ## Best Practices Summary

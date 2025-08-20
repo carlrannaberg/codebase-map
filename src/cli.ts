@@ -32,6 +32,7 @@ import { findProjectRoot, findIndexFile } from './utils/find-project-root.js';
 import { DEFAULT_INDEX_FILENAME } from './constants.js';
 import { formatWarningsForCLI, formatSuggestionsForCLI } from './utils/pattern-analysis.js';
 import { SecurityViolationError, displayError, getExitCode } from './utils/pattern-errors.js';
+import { filterProjectIndex, getFilteringStats } from './utils/index.js';
 import { 
   toDSL, 
   toGraph,
@@ -78,6 +79,23 @@ function getVersion(): string {
 }
 
 const program = new Command();
+
+/**
+ * Builds FilterOptions from CLI include/exclude arguments
+ * @param include - Include patterns from CLI
+ * @param exclude - Exclude patterns from CLI
+ * @returns FilterOptions object for use with indexer or filtering functions
+ */
+function buildFilterOptions(include?: string[], exclude?: string[]): FilterOptions {
+  const filterOptions: FilterOptions = {};
+  if (include && include.length > 0) {
+    filterOptions.include = include;
+  }
+  if (exclude && exclude.length > 0) {
+    filterOptions.exclude = exclude;
+  }
+  return filterOptions;
+}
 
 /**
  * Validates and secures an output file path to prevent directory traversal attacks
@@ -146,13 +164,7 @@ program
     console.log('🔍 Scanning codebase...');
     
     // Build filter options from CLI arguments
-    const filterOptions: FilterOptions = {};
-    if (include && include.length > 0) {
-      filterOptions.include = include;
-    }
-    if (exclude && exclude.length > 0) {
-      filterOptions.exclude = exclude;
-    }
+    const filterOptions = buildFilterOptions(include, exclude);
     
     // Run pattern analysis if patterns are provided and verbose mode is on
     if (verbose && (include || exclude)) {
@@ -300,8 +312,10 @@ program
   .description('Format the index for LLMs (outputs to stdout)')
   .option('-f, --format <type>', 'output format: auto|json|dsl|graph|markdown|tree', 'auto')
   .option('-s, --stats', 'show statistics to stderr (does not affect stdout output)')
+  .option('--include <patterns...>', 'include file patterns (glob syntax: src/** lib/**/*.ts)')
+  .option('--exclude <patterns...>', 'exclude file patterns (glob syntax: **/*.test.ts docs/**)')
   .action((options) => {
-    const { format, stats } = options;
+    const { format, stats, include, exclude } = options;
     
     // Find existing index file
     const indexPath = findIndexFile();
@@ -311,7 +325,27 @@ program
       process.exit(1);
     }
     
-    const index: ProjectIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    let index: ProjectIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    
+    // Apply filtering if include/exclude patterns are provided
+    if (include || exclude) {
+      const filterOptions = buildFilterOptions(include, exclude);
+      
+      const originalIndex = index;
+      index = filterProjectIndex(index, filterOptions);
+      
+      // Show filtering statistics to stderr
+      const filterStats = getFilteringStats(originalIndex, index, filterOptions);
+      console.error(`\n--- Filtering Applied ---`);
+      console.error(`Files: ${filterStats.originalFileCount} → ${filterStats.filteredFileCount} (${filterStats.reductionPercentage.toFixed(1)}% reduction)`);
+      console.error(`Dependencies: ${filterStats.originalEdgeCount} → ${filterStats.filteredEdgeCount} (${filterStats.edgeReductionPercentage.toFixed(1)}% reduction)`);
+      if (filterOptions.include) {
+        console.error(`Include patterns: ${filterOptions.include.join(', ')}`);
+      }
+      if (filterOptions.exclude) {
+        console.error(`Exclude patterns: ${filterOptions.exclude.join(', ')}`);
+      }
+    }
     
     // Generate formatted output
     let result: { format: string; content: string };
