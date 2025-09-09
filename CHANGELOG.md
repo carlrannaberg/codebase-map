@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-09-09
+
+### Added
+- **Shell Expansion Auto-Fix**: Automatically detects and fixes shell expansion issues
+  - Detects when patterns like `examples/**/*` expand to 100+ individual files
+  - Automatically reconstructs the original pattern and re-runs the command
+  - Shows clear feedback: "Auto-fixing shell expansion: using pattern 'examples/**/*' instead of 386 individual files"
+  - Eliminates frustrating errors and provides seamless user experience
+- **Pattern Normalization**: Automatic directory pattern conversion
+  - Converts bare directory names like "examples" to "examples/**" 
+  - Handles directory paths like "src/core" to "src/core/**"
+  - Makes patterns work intuitively without requiring glob knowledge
+
+### Changed
+- **Error Messages**: Improved user experience with friendly, actionable messages
+  - "Pattern needs quotes to work properly" instead of technical stack traces
+  - Focus on solutions rather than technical explanations
+- **Code Quality**: Enhanced maintainability and consistency
+  - Extracted `validateFilterOptions()` method to eliminate code duplication
+  - Added named constants for validation limits (MAX_PATTERNS: 100, MAX_PATTERN_LENGTH: 1000)
+  - Improved test reliability by fixing flaky performance thresholds
+- **CLI Infrastructure**: Better executable handling
+  - Created proper Node.js wrapper following claudekit pattern
+  - Improved package.json bin configuration for reliable npm linking
+  - Enhanced CLI integration and error handling
+
+### Fixed
+- **Test Reliability**: Resolved intermittent test failures
+  - Fixed flaky performance test thresholds 
+  - Improved array equality checks in FileDiscovery tests
+  - More robust timeout handling in integration tests
+
 ## [0.6.0] - 2025-08-20
 
 ### Added
