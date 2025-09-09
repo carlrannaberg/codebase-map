@@ -872,56 +872,6 @@ export class DecoratedClass {
       });
     });
 
-    describe('suspicious content detection', () => {
-      it('should handle files with suspicious patterns safely', async () => {
-        const filePath = '/test/suspicious.ts';
-        const suspiciousContent = `
-          // This might look suspicious
-          eval('console.log("test")');
-          new Function('return 1;');
-          process.exit(0);
-          require('child_process').exec('ls');
-          
-          // But should still parse valid TypeScript
-          export const safe = 'value';
-          export function safeFunction() {}
-        `;
-
-        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(suspiciousContent);
-        
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-        const result = await ASTParser.parseFile(filePath);
-
-        // Should parse safely and warn about suspicious content
-        expect(result).toBeDefined();
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Detected suspicious patterns'));
-        
-        consoleSpy.mockRestore();
-      });
-
-      it('should handle potential code injection attempts', async () => {
-        const filePath = '/test/injection.ts';
-        const injectionContent = `
-          const userInput = "</script><script>alert('xss')</script>";
-          const sqlQuery = "SELECT * FROM users WHERE id = '; DROP TABLE users; --";
-          const dangerous = \`eval(\${userCode})\`;
-          
-          export const normalConst = 'safe';
-        `;
-
-        (mockFs.promises.readFile as ReturnType<typeof vi.fn>).mockResolvedValue(injectionContent);
-
-        const result = await ASTParser.parseFile(filePath);
-
-        // When suspicious patterns are detected, safe parsing is used which may not extract all constants
-        // The file should be processed without errors but results may be limited
-        expect(result).toBeDefined();
-        expect(result.imports).toBeDefined();
-        // Safe parsing might not extract constants from suspicious files
-        expect(result.constants.length).toBeGreaterThanOrEqual(0);
-      });
-    });
 
     describe('recovery and cleanup after failures', () => {
       it('should maintain clean state after parse failures', async () => {

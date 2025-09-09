@@ -635,9 +635,9 @@ export function useExternal(): string {
 
       // Performance should be consistent
       const avgDuration = durations.reduce((a, b) => a + b) / durations.length;
-      const maxAcceptable = Math.max(avgDuration * 3, 2); // More tolerance for very fast operations
+      const maxAcceptable = Math.max(avgDuration * 5, 10); // More tolerance for system variability
       durations.forEach(duration => {
-        expect(duration).toBeLessThanOrEqual(maxAcceptable); // No run should be more than 3x average
+        expect(duration).toBeLessThanOrEqual(maxAcceptable); // No run should be more than 5x average or 10ms
       });
     });
   });

@@ -301,7 +301,7 @@ npm install fast-glob ignore tsx typescript
 ### Input Validation
 - Validate file paths to prevent directory traversal
 - Sanitize file content before parsing
-- Handle malformed/malicious TypeScript gracefully
+- Handle malformed TypeScript syntax gracefully
 
 ### File System Access
 - Read-only access for source files

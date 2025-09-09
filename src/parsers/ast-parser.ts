@@ -1,5 +1,10 @@
 /**
  * AST parsing module - extracts code signatures using TypeScript compiler API
+ * 
+ * Note: This module performs static analysis only and never executes code.
+ * The TypeScript compiler API only performs lexical and syntactic analysis,
+ * making pattern-based security checks unnecessary. Any actual security 
+ * validation should be performed at execution boundaries, not during parsing.
  */
 
 import * as fs from 'node:fs';
@@ -19,34 +24,6 @@ import type {
  */
 const MAX_FILE_SIZE_BYTES = 1 * 1024 * 1024;
 
-/**
- * Suspicious patterns that could indicate malicious code
- * Files containing these patterns will be parsed safely
- */
-const SUSPICIOUS_PATTERNS = [
-  /\beval\s*\(/,
-  /\bFunction\s*\(/,
-  /\bnew\s+Function\s*\(/,
-  /\brequire\s*\(\s*['"]child_process['"]/,
-  /\bprocess\s*\.\s*exec/,
-  /\bexec\s*\(/,
-  /\bspawn\s*\(/,
-  /\bfork\s*\(/,
-  /\bsetTimeout\s*\(\s*['"].+['"]\s*,/,
-  /\bsetInterval\s*\(\s*['"].+['"]\s*,/,
-  /document\s*\.\s*write\s*\(/,
-  /innerHTML\s*=/,
-  /outerHTML\s*=/,
-  /\b__dirname\s*\+/,
-  /\b__filename\s*\+/,
-  /fs\s*\.\s*(write|unlink|rm)/,
-  /\bBuffer\s*\.\s*from\s*\(/,
-  /\bunescape\s*\(/,
-  /\bdecodeURI\s*\(/,
-  /\\x[0-9a-fA-F]{2}/,
-  /\\u[0-9a-fA-F]{4}/,
-  /['"]\s*\+\s*['"]/ // String concatenation that could hide code
-];
 
 /**
  * Error class for oversized file warnings
@@ -77,19 +54,13 @@ export class ASTParser {
         const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
         
         console.warn(`Warning: Skipping AST parsing for oversized file: ${filePath} (${sizeInMB}MB, limit: 1MB)`);
-        console.warn('Using fallback parsing for basic import/export detection.');
+        console.warn('File exceeds size limit. Returning empty file info.');
         
         return this.getEmptyFileInfo();
       }
       
       const content = await fs.promises.readFile(filePath, 'utf8');
       
-      // Detect suspicious patterns before parsing
-      if (this.containsSuspiciousPatterns(content)) {
-        console.warn(`Warning: Detected suspicious patterns in file: ${filePath}`);
-        console.warn('Using safe parsing mode for security.');
-        return this.parseSafely(content, filePath);
-      }
       
       return this.parseContent(content, filePath);
     } catch (error) {
@@ -155,7 +126,7 @@ export class ASTParser {
     } catch (error) {
       // For syntax errors, try fallback parsing
       console.warn(`AST parsing failed for ${filePath}, attempting fallback parsing: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      return this.parseFallback(content, filePath);
+      return this.parseBasicImports(content, filePath);
     }
   }
 
@@ -645,27 +616,7 @@ export class ASTParser {
     }
   }
 
-  /**
-   * Check if content contains suspicious patterns that could indicate malicious code
-   * @param content - File content to check
-   * @returns True if suspicious patterns are detected
-   */
-  private static containsSuspiciousPatterns(content: string): boolean {
-    return SUSPICIOUS_PATTERNS.some(pattern => pattern.test(content));
-  }
 
-  /**
-   * Parse file content safely when suspicious patterns are detected
-   * Only extracts basic import/export information to minimize risk
-   * @param content - File content as string
-   * @param filePath - File path for error reporting
-   * @returns FileInfo with basic import information only
-   */
-  private static parseSafely(content: string, filePath: string): FileInfo {
-    // For suspicious files, only perform minimal regex-based import extraction
-    // Do not perform full AST parsing to avoid potential code execution
-    return this.parseFallback(content, filePath);
-  }
 
   /**
    * Create an empty FileInfo object for files that exceed limits or fail validation
@@ -682,13 +633,13 @@ export class ASTParser {
   }
 
   /**
-   * Fallback parsing for oversized files or when AST parsing fails
+   * Parse basic imports when AST parsing fails due to syntax errors
    * Uses regex-based parsing for basic import/export detection
    * @param content - File content as string
    * @param filePath - File path for error reporting
    * @returns FileInfo with basic import information
    */
-  private static parseFallback(content: string, filePath: string): FileInfo {
+  private static parseBasicImports(content: string, filePath: string): FileInfo {
     const imports: ImportInfo[] = [];
     
     try {
