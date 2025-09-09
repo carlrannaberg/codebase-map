@@ -607,8 +607,10 @@ describe('FileDiscovery', () => {
             'lib/main/utils.js'
           ]);
         }
-        // Second call for include patterns
-        if (Array.isArray(patterns) && patterns === testPatterns) {
+        // Second call for include patterns - match content instead of reference
+        if (Array.isArray(patterns) && 
+            patterns.length === testPatterns.length &&
+            patterns.every((p, i) => p === testPatterns[i])) {
           return Promise.resolve([
             'src/components/Button.tsx',
             'src/utils/helpers.ts'
@@ -690,8 +692,10 @@ describe('FileDiscovery', () => {
         if (Array.isArray(patternsArg) && patternsArg.some(p => p.includes('**/*.ts'))) {
           return Promise.resolve(allCandidateFiles);
         }
-        // Second call for include patterns
-        if (Array.isArray(patternsArg) && patternsArg === patterns) {
+        // Second call for include patterns - match content instead of reference
+        if (Array.isArray(patternsArg) && 
+            patternsArg.length === patterns.length &&
+            patternsArg.every((p, i) => p === patterns[i])) {
           return Promise.resolve(includeMatchFiles);
         }
         return Promise.resolve([]);

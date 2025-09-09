@@ -58,6 +58,19 @@ export class FileDiscovery {
   ];
 
   /**
+   * Validate filter options patterns
+   * @private
+   */
+  private static validateFilterOptions(options: FilterOptions): void {
+    if (options.include !== undefined) {
+      validatePatternArray(options.include, 'include');
+    }
+    if (options.exclude !== undefined) {
+      validatePatternArray(options.exclude, 'exclude');
+    }
+  }
+
+  /**
    * Discover all TypeScript/JavaScript files in the project with analysis
    * 
    * @param rootPath - Root directory to scan (absolute or relative path)
@@ -85,21 +98,106 @@ export class FileDiscovery {
     rootPath: string, 
     options: FilterOptions = {}
   ): Promise<{ files: string[]; analysis: { warnings: PatternWarning[]; suggestions: string[]; stats: { totalCandidateFiles: number; includedFiles: number; finalFiles: number; excludedFiles: number } } }> {
-    const files = await this.discoverFiles(rootPath, options);
+    // Validate patterns upfront
+    this.validateFilterOptions(options);
+
+    const absoluteRoot = path.resolve(rootPath);
     
-    // Create mock analysis for now - this would be enhanced with real pattern analysis
+    // Step 1: Get all candidate files (before any filtering)
+    const candidatePatterns = [
+      '**/*.ts',
+      '**/*.tsx', 
+      '**/*.js',
+      '**/*.jsx'
+    ];
+    
+    const globOptions = {
+      cwd: absoluteRoot,
+      ignore: this.EXCLUDED_DIRS.map(dir => `**/${dir}/**`),
+      onlyFiles: true,
+      absolute: false,
+      dot: false
+    };
+
+    // Load gitignore rules
+    const ignoreRules = await this.loadIgnoreRules(absoluteRoot);
+    
+    // Get all candidate files
+    const allCandidateFiles = await fastGlob(candidatePatterns, globOptions);
+    const candidateFiles = allCandidateFiles.filter(file => 
+      this.isSupportedFile(file) && !ignoreRules.ignores(file)
+    );
+    
+    // Step 2: Apply include patterns if provided
+    let afterIncludeFiles = candidateFiles;
+    if (options.include && options.include.length > 0) {
+      const normalizedInclude = this.normalizePatterns(options.include);
+      const includeFiles = await fastGlob(normalizedInclude, globOptions);
+      afterIncludeFiles = candidateFiles.filter(file => 
+        includeFiles.includes(file) && this.isSupportedFile(file)
+      );
+    }
+    
+    // Step 3: Apply exclude patterns if provided  
+    let finalFiles = afterIncludeFiles;
+    if (options.exclude && options.exclude.length > 0) {
+      const cache = getGlobalPatternCache();
+      const ignoreInstance = cache.getIgnorePattern(options.exclude);
+      finalFiles = afterIncludeFiles.filter(file => !ignoreInstance.ignores(file));
+    }
+    
+    // Step 4: Generate warnings and suggestions
+    const warnings: PatternWarning[] = [];
+    const suggestions: string[] = [];
+    
+    // Check for common pattern issues
+    if (options.include && options.include.length > 0) {
+      const normalizedInclude = this.normalizePatterns(options.include);
+      const originalCount = options.include.length;
+      const normalizedCount = normalizedInclude.length;
+      
+      if (afterIncludeFiles.length === 0) {
+        warnings.push({
+          level: 'error',
+          category: 'Pattern matching',
+          message: `Include patterns don't match any files`,
+          suggestion: 'Try broader patterns like "src/**" or check your directory structure',
+          patterns: options.include
+        });
+      } else if (originalCount !== normalizedCount) {
+        // Some patterns were normalized - inform user
+        suggestions.push('Some directory patterns were automatically normalized (e.g., "src" → "src/**")');
+      }
+    }
+    
+    if (finalFiles.length === 0 && candidateFiles.length > 0) {
+      warnings.push({
+        level: 'error',
+        category: 'Pattern conflict',
+        message: `All ${candidateFiles.length} files were excluded by the current patterns`,
+        suggestion: 'Review your include/exclude patterns to ensure they don\'t conflict'
+      });
+    }
+    
+    // Create analysis object
     const analysis = {
-      warnings: [] as PatternWarning[],
-      suggestions: [] as string[],
+      warnings,
+      suggestions,
       stats: {
-        totalCandidateFiles: files.length + 10, // Mock data
-        includedFiles: files.length + 5,
-        finalFiles: files.length,
-        excludedFiles: 5
+        totalCandidateFiles: candidateFiles.length,
+        includedFiles: afterIncludeFiles.length,
+        finalFiles: finalFiles.length,
+        excludedFiles: afterIncludeFiles.length - finalFiles.length
       }
     };
     
-    return { files, analysis };
+    // Throw error if no files found (to match existing behavior)
+    if (finalFiles.length === 0) {
+      throw createPatternConflictFromAnalysis(options, analysis.stats, 'discovery', absoluteRoot) ||
+        new Error(`Pattern conflict: All files would be excluded by the current patterns in ${absoluteRoot}`);
+    }
+    
+    return { files: finalFiles.sort(), analysis };
   }
 
   /**
@@ -151,12 +249,7 @@ export class FileDiscovery {
     logger.startEvaluation();
 
     // Validate patterns if provided
-    if (options.include !== undefined) {
-      validatePatternArray(options.include, 'include');
-    }
-    if (options.exclude !== undefined) {
-      validatePatternArray(options.exclude, 'exclude');
-    }
+    this.validateFilterOptions(options);
     
     // Load gitignore rules
     const ignoreRules = await this.loadIgnoreRules(absoluteRoot);
@@ -227,12 +320,7 @@ export class FileDiscovery {
       const absoluteRoot = path.resolve(rootPath);
       
       // Validate patterns if provided
-      if (options.include !== undefined) {
-        validatePatternArray(options.include, 'include');
-      }
-      if (options.exclude !== undefined) {
-        validatePatternArray(options.exclude, 'exclude');
-      }
+      this.validateFilterOptions(options);
       
       // Load gitignore rules
       const ignoreRules = await this.loadIgnoreRules(absoluteRoot);
@@ -248,7 +336,7 @@ export class FileDiscovery {
       // Apply include patterns if provided
       if (options.include && options.include.length > 0) {
         const cache = getGlobalPatternCache();
-        const includePatterns = options.include;
+        const includePatterns = this.normalizePatterns(options.include);
         // Cache the glob pattern compilation (use a copy to preserve order)
         cache.getGlobPattern([...includePatterns], globOptions);
         const includeFiles = await fastGlob(includePatterns, globOptions);
@@ -376,6 +464,35 @@ export class FileDiscovery {
     ]);
     
     return ig;
+  }
+
+  /**
+   * Normalize glob patterns to ensure directory patterns work correctly
+   * Converts bare directory names like "examples" to "examples/**"
+   * Also converts directory paths like "src/core" to "src/core/**"
+   * 
+   * @param patterns - Array of glob patterns to normalize
+   * @returns Normalized patterns that will match files
+   */
+  public static normalizePatterns(patterns: string[]): string[] {
+    return patterns.map(pattern => {
+      // Don't normalize patterns that already have glob characters or file extensions
+      if (
+        pattern.startsWith('!') || // negation patterns
+        pattern.includes('*') || // already has wildcards
+        pattern.includes('?') || // already has wildcards 
+        pattern.includes('[') || // bracket expressions
+        pattern.includes('{') || // brace expansion
+        pattern.includes('.') || // has file extension (e.g., *.ts, package.json)
+        pattern.endsWith('/') // already directory syntax
+      ) {
+        return pattern;
+      }
+      
+      // Normalize bare directory names and directory paths without wildcards
+      // This includes both 'examples' and 'src/core'
+      return `${pattern}/**`;
+    });
   }
 
   /**

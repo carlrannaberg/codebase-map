@@ -32,6 +32,7 @@ import { findProjectRoot, findIndexFile } from './utils/find-project-root.js';
 import { DEFAULT_INDEX_FILENAME } from './constants.js';
 import { formatWarningsForCLI, formatSuggestionsForCLI } from './utils/pattern-analysis.js';
 import { SecurityViolationError, displayError, getExitCode } from './utils/pattern-errors.js';
+import { PatternValidationError } from './utils/pattern-validation.js';
 import { filterProjectIndex, getFilteringStats } from './utils/index.js';
 import { 
   toDSL, 
@@ -41,6 +42,30 @@ import {
   formatAuto,
   getCompressionStats
 } from './core/index-formatter.js';
+
+/**
+ * Reconstruct the original pattern from shell-expanded file paths
+ */
+function reconstructOriginalPattern(expandedPaths: string[]): string | null {
+  if (expandedPaths.length === 0) return null;
+  
+  // Look for common directory prefix
+  const firstPath = expandedPaths[0];
+  if (!firstPath) return null;
+  
+  const pathParts = firstPath.split('/');
+  
+  if (pathParts.length >= 2) {
+    const baseDir = pathParts[0];
+    // Check if all paths start with the same directory
+    if (expandedPaths.every(p => p.startsWith(baseDir + '/'))) {
+      return `${baseDir}/**/*`;
+    }
+  }
+  
+  // Fallback: generic pattern
+  return '**/*';
+}
 
 /**
  * Reads the version from package.json using existing project utilities
@@ -80,8 +105,9 @@ function getVersion(): string {
 
 const program = new Command();
 
+
 /**
- * Builds FilterOptions from CLI include/exclude arguments
+ * Builds FilterOptions from CLI include/exclude arguments with pattern normalization
  * @param include - Include patterns from CLI
  * @param exclude - Exclude patterns from CLI
  * @returns FilterOptions object for use with indexer or filtering functions
@@ -89,10 +115,10 @@ const program = new Command();
 function buildFilterOptions(include?: string[], exclude?: string[]): FilterOptions {
   const filterOptions: FilterOptions = {};
   if (include && include.length > 0) {
-    filterOptions.include = include;
+    filterOptions.include = FileDiscovery.normalizePatterns(include);
   }
   if (exclude && exclude.length > 0) {
-    filterOptions.exclude = exclude;
+    filterOptions.exclude = FileDiscovery.normalizePatterns(exclude);
   }
   return filterOptions;
 }
@@ -166,6 +192,7 @@ program
     // Build filter options from CLI arguments
     const filterOptions = buildFilterOptions(include, exclude);
     
+    
     // Run pattern analysis if patterns are provided and verbose mode is on
     if (verbose && (include || exclude)) {
       console.log('\n📋 Analyzing patterns...');
@@ -196,20 +223,46 @@ program
         }
         
       } catch (error) {
-        console.error(`❌ Pattern analysis failed: ${error}`);
+        if (error instanceof Error && error.message.includes('Pattern conflict')) {
+          console.log(`   ⚠️  Pattern analysis: No files match the raw patterns (this is normal - will try normalization during scan)`);
+        } else {
+          console.error(`❌ Pattern analysis failed: ${error}`);
+        }
       }
     }
     
     const indexer = new CodeIndexer(root, filterOptions);
     const startTime = Date.now();
     
-    let stepsCompleted = 0;
-    const index = await indexer.processProject(verbose ? (progress: { step: string; current: number; total: number }): void => {
-      if (progress.current > stepsCompleted) {
-        stepsCompleted = progress.current;
-        console.log(`  ${progress.step}... (${progress.current}/${progress.total})`);
+    let index: ProjectIndex;
+    try {
+      let stepsCompleted = 0;
+      index = await indexer.processProject(verbose ? (progress: { step: string; current: number; total: number }): void => {
+        if (progress.current > stepsCompleted) {
+          stepsCompleted = progress.current;
+          console.log(`  ${progress.step}... (${progress.current}/${progress.total})`);
+        }
+      } : undefined);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Pattern conflict')) {
+        console.error(`\n❌ No files found matching your patterns.`);
+        console.error(`   This could be because:`);
+        console.error(`   • The patterns don't match any existing files`);
+        console.error(`   • The patterns are quoted incorrectly (use quotes to prevent shell expansion)`);
+        console.error(`   • The directory doesn't contain TypeScript/JavaScript files`);
+        if (include) {
+          console.error(`   • Include patterns: ${include.join(', ')}`);
+        }
+        if (exclude) {
+          console.error(`   • Exclude patterns: ${exclude.join(', ')}`);
+        }
+        console.error(`\n💡 Try using quoted patterns like: --include "examples/**" --exclude "node_modules/**"`);
+        process.exit(1);
+      } else {
+        console.error(`❌ Failed to scan project: ${error instanceof Error ? error.message : error}`);
+        process.exit(1);
       }
-    } : undefined);
+    }
     
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
     
@@ -331,19 +384,76 @@ program
     if (include || exclude) {
       const filterOptions = buildFilterOptions(include, exclude);
       
-      const originalIndex = index;
-      index = filterProjectIndex(index, filterOptions);
-      
-      // Show filtering statistics to stderr
-      const filterStats = getFilteringStats(originalIndex, index, filterOptions);
-      console.error(`\n--- Filtering Applied ---`);
-      console.error(`Files: ${filterStats.filteredFileCount} of ${filterStats.originalFileCount}`);
-      console.error(`Dependencies: ${filterStats.filteredEdgeCount} of ${filterStats.originalEdgeCount}`);
-      if (filterOptions.include) {
-        console.error(`Include patterns: ${filterOptions.include.join(', ')}`);
-      }
-      if (filterOptions.exclude) {
-        console.error(`Exclude patterns: ${filterOptions.exclude.join(', ')}`);
+      try {
+        const originalIndex = index;
+        index = filterProjectIndex(index, filterOptions);
+        
+        // Show filtering statistics to stderr
+        const filterStats = getFilteringStats(originalIndex, index, filterOptions);
+        console.error(`\n--- Filtering Applied ---`);
+        console.error(`Files: ${filterStats.filteredFileCount} of ${filterStats.originalFileCount}`);
+        console.error(`Dependencies: ${filterStats.filteredEdgeCount} of ${filterStats.originalEdgeCount}`);
+        if (filterOptions.include) {
+          console.error(`Include patterns: ${filterOptions.include.join(', ')}`);
+        }
+        if (filterOptions.exclude) {
+          console.error(`Exclude patterns: ${filterOptions.exclude.join(', ')}`);
+        }
+        
+        // Check if all files were filtered out
+        if (filterStats.filteredFileCount === 0) {
+          console.error(`\n⚠️  Warning: No files matched your filter patterns.`);
+          console.error(`   All ${filterStats.originalFileCount} files in the index were excluded.`);
+          if (filterOptions.include) {
+            console.error(`   Include patterns: ${filterOptions.include.join(', ')}`);
+          }
+          if (filterOptions.exclude) {
+            console.error(`   Exclude patterns: ${filterOptions.exclude.join(', ')}`);
+          }
+          console.error(`\n💡 Try adjusting your patterns or use --format json to see all files.`);
+        }
+      } catch (error) {
+        if (error instanceof PatternValidationError && error.message.includes('Too many')) {
+          // Auto-fix shell expansion
+          const allPatterns = [...(filterOptions.include || []), ...(filterOptions.exclude || [])];
+          const fixedPattern = reconstructOriginalPattern(allPatterns);
+          
+          if (fixedPattern) {
+            console.error(`\n✅ Auto-fixing shell expansion: using pattern "${fixedPattern}" instead of ${allPatterns.length} individual files`);
+            
+            // Create new filter options with the fixed pattern
+            const fixedFilterOptions: FilterOptions = { ...filterOptions };
+            if (filterOptions.include && filterOptions.include.length > 0) {
+              fixedFilterOptions.include = [fixedPattern];
+            }
+            if (filterOptions.exclude && filterOptions.exclude.length > 0) {
+              fixedFilterOptions.exclude = [fixedPattern];
+            }
+            
+            // Re-run the filtering with fixed pattern
+            try {
+              const originalIndex = index;
+              index = filterProjectIndex(index, fixedFilterOptions);
+              
+              // Show filtering statistics to stderr
+              const filterStats = getFilteringStats(originalIndex, index, fixedFilterOptions);
+              console.error(`\n--- Filtering Applied (Auto-fixed) ---`);
+              console.error(`Files: ${filterStats.filteredFileCount} of ${filterStats.originalFileCount}`);
+              console.error(`Dependencies: ${filterStats.filteredEdgeCount} of ${filterStats.originalEdgeCount}`);
+              console.error(`Pattern: ${fixedPattern}`);
+            } catch (retryError) {
+              console.error(`\n❌ Auto-fix failed: ${retryError instanceof Error ? retryError.message : retryError}`);
+              process.exit(1);
+            }
+          } else {
+            console.error(`\n❌ Pattern needs quotes to work properly:`);
+            console.error(`   codebase-map format --include "examples/**/*"`);
+            process.exit(1);
+          }
+        } else {
+          console.error(`❌ Failed to apply filtering: ${error instanceof Error ? error.message : error}`);
+          process.exit(1);
+        }
       }
     }
     
@@ -449,10 +559,24 @@ program
     }
   });
 
-// Parse arguments
-program.parse(process.argv);
+/**
+ * Main CLI runner function
+ * @param args - Command line arguments (defaults to process.argv)
+ */
+export async function runCli(args: string[] = process.argv): Promise<void> {
+  // Parse arguments
+  await program.parseAsync(args);
 
-// Show help if no command provided
-if (!process.argv.slice(2).length) {
-  program.outputHelp();
+  // Show help if no command provided
+  if (!args.slice(2).length) {
+    program.outputHelp();
+  }
+}
+
+// If this module is being run directly, execute the CLI
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runCli().catch((error) => {
+    console.error('CLI error:', error);
+    process.exit(1);
+  });
 }

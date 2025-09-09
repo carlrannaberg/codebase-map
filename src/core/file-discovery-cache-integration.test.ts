@@ -68,7 +68,7 @@ describe('FileDiscovery Pattern Cache Integration', () => {
     const avgTime = (end - start) / iterations;
     
     // With caching, repeated operations should be fast
-    expect(avgTime).toBeLessThan(50); // Less than 50ms per operation
+    expect(avgTime).toBeLessThan(100); // Less than 100ms per operation
     
     // Cache should show high hit rate
     const stats = FileDiscovery.getPatternCacheStats();

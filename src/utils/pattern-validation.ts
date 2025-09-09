@@ -5,6 +5,15 @@
 import fg from 'fast-glob';
 
 /**
+ * Pattern validation limits for security and performance
+ */
+const LIMITS = {
+  MAX_PATTERNS: 100,
+  MAX_PATTERN_LENGTH: 1000,
+  MAX_RECURSIVE_WILDCARDS: 10
+} as const;
+
+/**
  * Legacy error class for backward compatibility
  * @deprecated Use InvalidPatternSyntaxError or SecurityViolationError instead
  */
@@ -114,19 +123,19 @@ export function validateGlobPattern(pattern: string): void {
   }
 
   // Additional pattern length check for performance
-  if (pattern.length > 1000) {
+  if (pattern.length > LIMITS.MAX_PATTERN_LENGTH) {
     throw new PatternValidationError(
       pattern,
-      'Pattern is too long (maximum 1000 characters)'
+      `Pattern is too long (maximum ${LIMITS.MAX_PATTERN_LENGTH} characters)`
     );
   }
 
   // Check for excessive wildcard nesting which could cause performance issues
   const wildcardMatches = pattern.match(/\*\*/g);
-  if (wildcardMatches && wildcardMatches.length > 10) {
+  if (wildcardMatches && wildcardMatches.length > LIMITS.MAX_RECURSIVE_WILDCARDS) {
     throw new PatternValidationError(
       pattern,
-      'Too many recursive wildcards (**) - maximum 10 allowed for performance reasons'
+      `Too many recursive wildcards (**) - maximum ${LIMITS.MAX_RECURSIVE_WILDCARDS} allowed for performance reasons`
     );
   }
 }
@@ -185,10 +194,10 @@ export function validatePatternArray(
   }
 
   // Check for reasonable array length
-  if (patterns.length > 100) {
+  if (patterns.length > LIMITS.MAX_PATTERNS) {
     throw new PatternValidationError(
-      `Array with ${patterns.length} patterns`,
-      `Too many ${type} patterns - maximum 100 allowed for performance reasons`
+      `${patterns.length} patterns provided`,
+      `Too many ${type} patterns. Maximum ${LIMITS.MAX_PATTERNS} allowed. Try using fewer, more specific patterns.`
     );
   }
 }

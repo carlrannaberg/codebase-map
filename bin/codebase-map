@@ -1,0 +1,23 @@
+#!/usr/bin/env node
+
+// This is a wrapper script for the codebase-map CLI
+// It ensures the CLI runs correctly when installed globally or via npx
+
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+try {
+  const cliModule = await import(join(__dirname, '../dist/cli.js'));
+  if (cliModule.runCli) {
+    await cliModule.runCli();
+  } else {
+    console.error('Failed to find runCli function in CLI module');
+    process.exit(1);
+  }
+} catch (error) {
+  console.error('Failed to load codebase-map CLI:', error.message);
+  process.exit(1);
+}
